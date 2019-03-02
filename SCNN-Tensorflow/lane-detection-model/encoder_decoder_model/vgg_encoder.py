@@ -107,6 +107,55 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
         return relu
 
+    def _slice_feature(self,feature_maps):
+        # if self._x_bin==1 and self._xbegin==0 and self._xsize==1 \
+        #     and self._y_bin==1 and self._ybegin==0 and self._ysize==1:
+        #   return feature_maps
+        _x_bin = 1
+        _xbegin = 0
+        _xsize = 1
+        _x_bin = 3
+        _xbegin = 1
+        _xsize = 2
+        size = feature_maps.shape.as_list()[1:3]
+        assert size[0] % _y_bin == 0
+        assert size[1] % _x_bin == 0
+
+        ybin = size[0] /  _y_bin
+        ybeg = _ybegin * ybin
+        ysize = _ysize * ybin
+
+        xbin = size[1] / _x_bin
+        xbeg = _xbegin * xbin
+        xsize = _xsize * xbin
+
+        size = feature_maps.shape.as_list()
+        slice_feature_maps = tf.strided_slice(feature_maps,
+                begin=[0, ybeg, xbeg, 0],
+                end=[size[0], ybeg+ysize, xbeg+xsize, size[3]])
+        return slice_feature_maps
+
+    def aspp(self, input_tensor, kernel_size, name):
+        feature_map_size = tf.shape(input_tensor)
+        with tf.variable_scope(name):
+            conv_1 = tf.reduce_mean(input_tensor, [1, 2], keep_dims=True)
+            conv_1 = self._conv_stage(input_tensor=input_tensor, k_size=1,
+                                        out_dims=kernel_size, name='conv1')
+            conv_1 = tf.image.resize_bilinear(conv_1, (feature_map_size[1], feature_map_size[2]))
+            conv_2 = self._conv_stage(input_tensor=input_tensor, k_size=1,
+                                        out_dims=kernel_size, name='conv2')
+            conv_3 = self._conv_dilated_stage(input_tensor=input_tensor, k_size=3,
+                                                out_dims=kernel_size, dilation=6, name='conv3')
+            conv_4 = self._conv_dilated_stage(input_tensor=input_tensor, k_size=3,
+                                                out_dims=kernel_size, dilation=12, name='conv4')
+            conv_5 = self._conv_dilated_stage(input_tensor=input_tensor, k_size=3,
+                                                out_dims=kernel_size, dilation=18, name='conv5')
+            conv = tf.concat((conv_1, conv_2, conv_3, conv_4, conv_5), axis=3)
+            conv = self._conv_stage(input_tensor=conv, k_size=1,
+                                        out_dims=kernel_size, name='conv6')
+
+        return conv
+
     def encode(self, input_tensor, name):
         """
         根据vgg16框架对输入的tensor进行编码
@@ -312,10 +361,253 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
         return ret
 
+    def encode_re(self, input_tensor, name):
+        """
+        根据vgg16框架对输入的tensor进行编码
+        :param input_tensor:
+        :param name:
+        :return: 输出vgg16编码特征
+        """
+        ret = OrderedDict()
+        with tf.variable_scope(name):
+            # conv stage 1_1
+            conv_1_1 = self._conv_stage(input_tensor=input_tensor, k_size=3,
+                                        out_dims=64, name='conv1_1')
+
+            # conv stage 1_2
+            conv_1_2 = self._conv_stage(input_tensor=conv_1_1, k_size=3,
+                                        out_dims=64, name='conv1_2')
+
+            # pool stage 1
+            pool1 = self.maxpooling(inputdata=conv_1_2, kernel_size=2,
+                                    stride=2, name='pool1')
+
+            # conv stage 2_1
+            conv_2_1 = self._conv_stage(input_tensor=pool1, k_size=3,
+                                        out_dims=128, name='conv2_1')
+
+            # conv stage 2_2
+            conv_2_2 = self._conv_stage(input_tensor=conv_2_1, k_size=3,
+                                        out_dims=128, name='conv2_2')
+
+            # pool stage 2
+            pool2 = self.maxpooling(inputdata=conv_2_2, kernel_size=2,
+                                    stride=2, name='pool2')
+
+            # conv stage 3_1
+            conv_3_1 = self._conv_stage(input_tensor=pool2, k_size=3,
+                                        out_dims=256, name='conv3_1')
+
+            # conv_stage 3_2
+            conv_3_2 = self._conv_stage(input_tensor=conv_3_1, k_size=3,
+                                        out_dims=256, name='conv3_2')
+
+            # conv stage 3_3
+            conv_3_3 = self._conv_stage(input_tensor=conv_3_2, k_size=3,
+                                        out_dims=256, name='conv3_3')
+
+            # pool stage 3
+            pool3 = self.maxpooling(inputdata=conv_3_3, kernel_size=2,
+                                    stride=2, name='pool3')
+
+            # conv stage 4_1
+            conv_4_1 = self._conv_stage(input_tensor=pool3, k_size=3,
+                                        out_dims=512, name='conv4_1')
+
+            # conv stage 4_2
+            conv_4_2 = self._conv_stage(input_tensor=conv_4_1, k_size=3,
+                                        out_dims=512, name='conv4_2')
+
+            # conv stage 4_3
+            conv_4_3 = self._conv_stage(input_tensor=conv_4_2, k_size=3,
+                                        out_dims=512, name='conv4_3')
+
+            ### add dilated convolution ###
+
+            # conv stage 5_1
+            conv_5_1 = self._conv_dilated_stage(input_tensor=conv_4_3, k_size=3,
+                                                out_dims=512, dilation=2, name='conv5_1')
+
+            # conv stage 5_2
+            conv_5_2 = self._conv_dilated_stage(input_tensor=conv_5_1, k_size=3,
+                                                out_dims=512, dilation=2, name='conv5_2')
+
+            # conv stage 5_3
+            conv_5_3 = self._conv_dilated_stage(input_tensor=conv_5_2, k_size=3,
+                                                out_dims=512, dilation=2, name='conv5_3')
+
+            # added part of SCNN #
+
+            # conv stage 5_4
+            conv_5_4 = self._conv_dilated_stage(input_tensor=conv_5_3, k_size=3,
+                                                out_dims=1024, dilation=4, name='conv5_4')
+
+            # conv stage 5_5
+            conv_5_5 = self._conv_stage(input_tensor=conv_5_4, k_size=1,
+                                        out_dims=128, name='conv5_5')  # 8 x 36 x 100 x 128
+
+            # add message passing #
+            IMG_HEIGHT = CFG.TRAIN.IMG_HEIGHT *2//3
+            # top to down #
+
+            feature_list_old = []
+            feature_list_new = []
+            for cnt in range(conv_5_5.get_shape().as_list()[1]):
+                feature_list_old.append(tf.expand_dims(conv_5_5[:, cnt, :, :], axis=1))
+            feature_list_new.append(tf.expand_dims(conv_5_5[:, 0, :, :], axis=1))
+
+            w1 = tf.get_variable('W1', [1, 9, 128, 128],
+                                 initializer=tf.random_normal_initializer(0, math.sqrt(2.0 / (9 * 128 * 128 * 5))))
+            with tf.variable_scope("convs_6_1"):
+                conv_6_1 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_old[0], w1, [1, 1, 1, 1], 'SAME')),
+                                  feature_list_old[1])
+                feature_list_new.append(conv_6_1)
+
+            for cnt in range(2, conv_5_5.get_shape().as_list()[1]):
+                with tf.variable_scope("convs_6_1", reuse=True):
+                    conv_6_1 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_new[cnt - 1], w1, [1, 1, 1, 1], 'SAME')),
+                                      feature_list_old[cnt])
+                    feature_list_new.append(conv_6_1)
+
+            # down to top #
+            feature_list_old = feature_list_new
+            feature_list_new = []
+            length = int(IMG_HEIGHT / 8) - 1
+            feature_list_new.append(feature_list_old[length])
+
+            w2 = tf.get_variable('W2', [1, 9, 128, 128],
+                                 initializer=tf.random_normal_initializer(0, math.sqrt(2.0 / (9 * 128 * 128 * 5))))
+            with tf.variable_scope("convs_6_2"):
+                conv_6_2 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_old[length], w2, [1, 1, 1, 1], 'SAME')),
+                                  feature_list_old[length - 1])
+                feature_list_new.append(conv_6_2)
+
+            for cnt in range(2, conv_5_5.get_shape().as_list()[1]):
+                with tf.variable_scope("convs_6_2", reuse=True):
+                    conv_6_2 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_new[cnt - 1], w2, [1, 1, 1, 1], 'SAME')),
+                                      feature_list_old[length - cnt])
+                    feature_list_new.append(conv_6_2)
+
+            feature_list_new.reverse()
+
+            processed_feature = tf.stack(feature_list_new, axis=1)
+            processed_feature = tf.squeeze(processed_feature, axis=2)
+
+            # left to right #
+
+            feature_list_old = []
+            feature_list_new = []
+            for cnt in range(processed_feature.get_shape().as_list()[2]):
+                feature_list_old.append(tf.expand_dims(processed_feature[:, :, cnt, :], axis=2))
+            feature_list_new.append(tf.expand_dims(processed_feature[:, :, 0, :], axis=2))
+
+            w3 = tf.get_variable('W3', [9, 1, 128, 128],
+                                 initializer=tf.random_normal_initializer(0, math.sqrt(2.0 / (9 * 128 * 128 * 5))))
+            with tf.variable_scope("convs_6_3"):
+                conv_6_3 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_old[0], w3, [1, 1, 1, 1], 'SAME')),
+                                  feature_list_old[1])
+                feature_list_new.append(conv_6_3)
+
+            for cnt in range(2, processed_feature.get_shape().as_list()[2]):
+                with tf.variable_scope("convs_6_3", reuse=True):
+                    conv_6_3 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_new[cnt - 1], w3, [1, 1, 1, 1], 'SAME')),
+                                      feature_list_old[cnt])
+                    feature_list_new.append(conv_6_3)
+
+            # right to left #
+
+            feature_list_old = feature_list_new
+            feature_list_new = []
+            length = int(CFG.TRAIN.IMG_WIDTH / 8) - 1
+            feature_list_new.append(feature_list_old[length])
+
+            w4 = tf.get_variable('W4', [9, 1, 128, 128],
+                                 initializer=tf.random_normal_initializer(0, math.sqrt(2.0 / (9 * 128 * 128 * 5))))
+            with tf.variable_scope("convs_6_4"):
+                conv_6_4 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_old[length], w4, [1, 1, 1, 1], 'SAME')),
+                                  feature_list_old[length - 1])
+                feature_list_new.append(conv_6_4)
+
+            for cnt in range(2, processed_feature.get_shape().as_list()[2]):
+                with tf.variable_scope("convs_6_4", reuse=True):
+                    conv_6_4 = tf.add(tf.nn.relu(tf.nn.conv2d(feature_list_new[cnt - 1], w4, [1, 1, 1, 1], 'SAME')),
+                                      feature_list_old[length - cnt])
+                    feature_list_new.append(conv_6_4)
+
+            feature_list_new.reverse()
+            processed_feature = tf.stack(feature_list_new, axis=2)
+            processed_feature = tf.squeeze(processed_feature, axis=3)
+
+            #######################
+
+            dropout_output = self.dropout(processed_feature, 0.9, is_training=self._is_training,
+                                          name='dropout')  # 0.9 denotes the probability of being kept
+            
+        #decoder
+        with tf.variable_scope('decode'):    
+            conv = tf.image.resize_images(dropout_output, [IMG_HEIGHT//4, CFG.TRAIN.IMG_WIDTH//4])
+            conv = tf.concat([conv,conv_3_3],axis=3)
+            # conv = self._slice_feature(conv)
+            conv = self._conv_stage(input_tensor=conv, k_size=1,
+                                        out_dims=128, name='conv1')
+            conv = self.aspp(conv, kernel_size=64,name='Aspp')
+
+            # lane marking segmentation
+            conv_1 = self._conv_stage(input_tensor=conv, k_size=3,
+                                        out_dims=64, name='conv2_1')
+            conv_1 = self._conv_stage(input_tensor=conv_1, k_size=1,
+                                        out_dims=32, name='conv3_1')
+            conv_1 = self._conv_stage(input_tensor=conv_1, k_size=3,
+                                        out_dims=32, name='conv4_1')
+            conv_output_1 = self.conv2d(inputdata=conv_1, out_channel=5,
+                                        kernel_size=1, use_bias=True, name='conv_5_1')
+
+            ret['prob_output'] = tf.image.resize_images(conv_output_1, [IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
+            ### add lane existence prediction branch ###
+
+            # spatial softmax #
+            features = conv_output_1  # N x H x W x C
+            softmax = tf.nn.softmax(features)
+
+            avg_pool = self.avgpooling(softmax, kernel_size=2, stride=2)
+            _, H, W, C = avg_pool.get_shape().as_list()
+            reshape_output = tf.reshape(avg_pool, [-1, H * W * C])
+            fc_output = self.fullyconnect(reshape_output, 128)
+            relu_output = self.relu(inputdata=fc_output, name='relu6')
+            fc_output = self.fullyconnect(relu_output, 4)
+            existence_output = fc_output
+
+            ret['existence_output'] = existence_output
+            # # lane area segmentation
+            # conv_2 = self._conv_stage(input_tensor=conv, k_size=3,
+            #                             out_dims=64, name='conv2_2')
+            # conv_2 = self._conv_stage(input_tensor=conv_2, k_size=1,
+            #                             out_dims=32, name='conv3_2')
+            # conv_2 = self._conv_stage(input_tensor=conv_2, k_size=3,
+            #                             out_dims=32, name='conv4_2')
+            # conv_output_2 = self.conv2d(inputdata=conv_2, out_channel=4,
+            #                             kernel_size=1, use_bias=True, name='conv_5_2')
+
+            # ret['lane_seg'] = tf.image.resize_images(conv_output_2, [CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
+            # # lane area regresstion
+            # conv_3 = self._conv_stage(input_tensor=conv, k_size=3,
+            #                             out_dims=64, name='conv2_3')
+            # conv_3 = self._conv_stage(input_tensor=conv_3, k_size=1,
+            #                             out_dims=32, name='conv3_3')
+            # conv_3 = self._conv_stage(input_tensor=conv_3, k_size=3,
+            #                             out_dims=32, name='conv4_3')
+            # conv_output_3 = self.conv2d(inputdata=conv_3, out_channel=2,
+            #                             kernel_size=1, use_bias=True, name='conv_5_3')
+
+            # ret['lane_reg'] = tf.image.resize_images(conv_output_3, [CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
+
+            
+
+        return ret
 
 if __name__ == '__main__':
-    a = tf.placeholder(dtype=tf.float32, shape=[CFG.TRAIN.BATCH_SIZE, CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH, 3],
+    a = tf.placeholder(dtype=tf.float32, shape=[CFG.TRAIN.BATCH_SIZE, CFG.TRAIN.IMG_HEIGHT*2//3, CFG.TRAIN.IMG_WIDTH, 3],
                        name='input')
     encoder = VGG16Encoder(phase=tf.constant('train', dtype=tf.string))
-    ret = encoder.encode(a, name='encode')
+    ret = encoder.encode_re(a, name='encode')
     print(ret)

@@ -27,7 +27,7 @@ class DataSet(object):
         """
         self._len = 0
         self.dataset_info_file = dataset_info_file
-        self._img, self._label_instance, self._label_existence = self._init_dataset()
+        self._img, self._label_instance, self._label_existence, self._lane_binary, self._lane_lmap, self._lane_rmap = self._init_dataset()
 
     def __len__(self):
         return self._len
@@ -63,31 +63,52 @@ class DataSet(object):
             raise ValueError('Failed to find file: ' + self.dataset_info_file)
 
         img_list = []
-        label_instance_list = []
-        label_existence_list = []
+        line_instance_list = []
+        line_existence_list = []
+        lane_binary_list = []
+        lane_lmap_list = []
+        lane_rmap_list = []
 
         with open(self.dataset_info_file, 'r') as file:
             for _info in file:
                 info_tmp = _info.strip(' ').split()
-
-                img_list.append(info_tmp[0][1:])
-                label_instance_list.append(info_tmp[1][1:])
-                label_existence_list.append([int(info_tmp[2]), int(info_tmp[3]), int(info_tmp[4]), int(info_tmp[5])])
+                # import pdb;pdb.set_trace()
+                img_list.append('data/'+info_tmp[0][1:])
+                line_instance_list.append('data/'+info_tmp[1][1:])
+                line_existence_list.append([int(info_tmp[2]), int(info_tmp[3]), int(info_tmp[4]), int(info_tmp[5])])
+                lane_binary_list.append('data/'+info_tmp[0][1:])
+                lane_lmap_list.append('data/'+info_tmp[0][1:])
+                lane_rmap_list.append('data/'+info_tmp[0][1:])
+                # lane_binary_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_gaush.png'))
+                # lane_lmap_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_l_3.png'))
+                # lane_rmap_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_r_3.png'))
+                
 
         self._len = len(img_list)
         # img_queue = tf.train.string_input_producer(img_list)
         # label_instance_queue = tf.train.string_input_producer(label_instance_list)
         with tf.name_scope('data_augmentation'):
             image_tensor = tf.convert_to_tensor(img_list)
-            label_instance_tensor = tf.convert_to_tensor(label_instance_list)
-            label_existence_tensor = tf.convert_to_tensor(label_existence_list)
-            input_queue = tf.train.slice_input_producer([image_tensor, label_instance_tensor, label_existence_tensor])
+            line_instance_tensor = tf.convert_to_tensor(line_instance_list)
+            line_existence_tensor = tf.convert_to_tensor(line_existence_list)
+            lane_binary_tensor = tf.convert_to_tensor(lane_binary_list)
+            lane_lmap_tensor = tf.convert_to_tensor(lane_lmap_list)
+            lane_rmap_tensor = tf.convert_to_tensor(lane_rmap_list)
+            input_queue = tf.train.slice_input_producer([image_tensor, 
+                                    line_instance_tensor, 
+                                    line_existence_tensor, 
+                                    lane_binary_tensor, 
+                                    lane_lmap_tensor, 
+                                    lane_rmap_tensor])
             img = self.process_img(input_queue[0])
             label_instance = self.process_label_instance(input_queue[1])
             label_existence = self.process_label_existence(input_queue[2])
+            lane_binary = self.process_label_instance(input_queue[3])
+            lane_lmap = self.process_label_instance(input_queue[4])
+            lane_rmap = self.process_label_instance(input_queue[5])
 
-        return img, label_instance, label_existence
+        return img, label_instance, label_existence, lane_binary, lane_lmap, lane_rmap
 
     def next_batch(self, batch_size):
-        return tf.train.batch([self._img, self._label_instance, self._label_existence], batch_size=batch_size,
+        return tf.train.batch([self._img, self._label_instance, self._label_existence, self._lane_binary, self._lane_lmap, self._lane_rmap], batch_size=batch_size,
                               num_threads=CFG.TRAIN.CPU_NUM)

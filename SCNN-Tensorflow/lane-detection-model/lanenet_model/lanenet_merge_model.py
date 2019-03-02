@@ -12,15 +12,48 @@ import tensorflow as tf
 
 from encoder_decoder_model import vgg_encoder
 from encoder_decoder_model import cnn_basenet
+# from lanenet_model import LaneDetPredictor
 from config import global_config
 
 CFG = global_config.cfg
 
+def _slice_feature(feature_maps):
+    _x_bin = 1
+    _xbegin = 0
+    _xsize = 1
+    _y_bin = 3
+    _ybegin = 1
+    _ysize = 2
+    if _x_bin==1 and _xbegin==0 and _xsize==1 \
+        and _y_bin==1 and _ybegin==0 and _ysize==1:
+      return feature_maps
+    size = feature_maps.shape.as_list()[1:3]
+    assert size[0] % _y_bin == 0
+    assert size[1] % _x_bin == 0
+
+    ybin = size[0] // _y_bin
+    ybeg = _ybegin * ybin
+    ysize = _ysize * ybin
+
+    xbin = size[1] // _x_bin
+    xbeg = _xbegin * xbin
+    xsize = _xsize * xbin
+
+    size = feature_maps.shape.as_list()
+    slice_feature_maps = tf.strided_slice(feature_maps,
+            begin=[0, ybeg, xbeg, 0],
+            end=[size[0], ybeg+ysize, xbeg+xsize, size[3]])
+    #slice_feature_maps = tf.slice(feature_maps,
+    #        begin=[0, ybeg, xbeg, 0],
+    #        size=[-1, ysize, xsize, -1])
+
+    return slice_feature_maps
 
 class LaneNet(cnn_basenet.CNNBaseModel):
     """
     Lane detection model
     """
+
 
     @staticmethod
     def inference(input_tensor, phase, name):
@@ -34,7 +67,9 @@ class LaneNet(cnn_basenet.CNNBaseModel):
         with tf.variable_scope(name):
             with tf.variable_scope('inference'):
                 encoder = vgg_encoder.VGG16Encoder(phase=phase)
-                encode_ret = encoder.encode(input_tensor=input_tensor, name='encode')
+                # import pdb;pdb.set_trace()
+                input_tensor = _slice_feature(input_tensor)
+                encode_ret = encoder.encode_re(input_tensor=input_tensor, name='encode')
 
             return encode_ret
 
@@ -73,7 +108,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             return binary_seg_ret, existence_output
 
     @staticmethod
-    def loss(inference, binary_label, existence_label, name):
+    def loss(inference, binary_label, existence_label, lane_binary, lane_lmap, lane_rmap, name):
         """
         :param name:
         :param inference:
@@ -84,7 +119,11 @@ class LaneNet(cnn_basenet.CNNBaseModel):
         # feed forward to obtain logits
 
         with tf.variable_scope(name):
-
+            # import pdb;pdb.set_trace()
+            binary_label = tf.expand_dims(binary_label,3)
+            binary_label = _slice_feature(binary_label)
+            binary_label = tf.squeeze(binary_label)
+            # import pdb;pdb.set_trace()
             inference_ret = inference
 
             # Compute the segmentation loss
@@ -114,6 +153,8 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             existence_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=existence_label, logits=existence_logits)
             existence_loss = tf.reduce_mean(existence_loss)
 
+            # Compute the lane segmentation loss
+            # Compute the lane regression loss
         # Compute the overall loss
 
         total_loss = binary_segmentation_loss + 0.1 * existence_loss
@@ -124,7 +165,9 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             'existence_logits': existence_logits,
             'existence_pre_loss': existence_loss
         }
-
+        # import pdb;pdb.set_trace()
+        padd = tf.zeros([CFG.TRAIN.BATCH_SIZE,CFG.TRAIN.IMG_HEIGHT//3, CFG.TRAIN.IMG_WIDTH,5])
+        decode_logits = tf.concat([padd,decode_logits],1)
         tf.add_to_collection('total_loss', total_loss)
         tf.add_to_collection('instance_seg_logits', decode_logits)
         tf.add_to_collection('instance_seg_loss', binary_segmentation_loss)
