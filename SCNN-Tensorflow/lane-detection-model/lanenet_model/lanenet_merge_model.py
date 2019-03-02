@@ -49,6 +49,79 @@ def _slice_feature(feature_maps):
 
     return slice_feature_maps
 
+def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
+    with tf.variable_scope(name + '/regress_loss'):
+        # det_gt_mask_l = tf.cast(tf.greater(gt[0],0), tf.int32)
+        prediction = tf.nn.sigmoid(tf.cast(prediction, tf.float32))
+        prediction = tf.cast(prediction, tf.float32)
+
+        # left_gt = self._slice_feature_(tf.expand_dims(gt[0], 3))
+        left_gt = tf.cast(left_gt, tf.float32)/250
+        # det_gt_mask_l = tf.cast(tf.greater(left_gt,0), tf.float32)
+
+        # right_gt = self._slice_feature_(tf.expand_dims(gt[1], 3))
+        right_gt = tf.squeeze(right_gt, tf.float32)/250
+        # det_gt_mask_r = tf.cast(tf.greater(right_gt,0), tf.float32)
+
+        # line_gt = self._slice_feature_(tf.expand_dims(gt[2], 3))
+        # line_gt = tf.squeeze(line_gt, axis=[3])
+        # det_gt_mask_line = tf.cast(tf.greater(line_gt,0), tf.float32)
+        mask = _slice_feature_(tf.expand_dims(mask, 3))
+        mask = tf.cast(tf.squeeze(mask, axis=[3]), tf.float32)
+
+        left_prediction = prediction[:,:,:,0]*mask#*det_gt_mask_l
+        right_prediction = prediction[:,:,:,1]*mask#*det_gt_mask_r
+        # line_prediction = prediction[:,:,:,2]#*det_gt_mask_line
+        # tf.summary.image(self._name+'/lab_left_gt', tf.cast(tf.expand_dims(left_gt*200, 3), tf.uint8), 2)
+        # tf.summary.image(self._name+'/lab_right_gt', tf.cast(tf.expand_dims(right_gt*200, 3), tf.uint8), 2)
+        # tf.summary.image(self._name+'/lab_line_gt', tf.cast(tf.expand_dims(line_gt*200, 3), tf.uint8), 2)
+        tf.summary.image(name+'/lab_left_gt', tf.concat(axis=2,
+              values=[tf.cast(tf.expand_dims(left_gt*200, 3), tf.uint8), tf.cast(tf.expand_dims(left_prediction*200, 3), tf.uint8)]
+              ), 1)
+        tf.summary.image(name+'/lab_right_gt', tf.concat(axis=2,
+              values=[tf.cast(tf.expand_dims(right_gt*200, 3), tf.uint8), tf.cast(tf.expand_dims(right_prediction*200, 3), tf.uint8)]
+              ), 1)
+        # tf.summary.image(self._name+'/lab_line_gt', tf.concat(axis=2,
+        #       values=[tf.cast(tf.expand_dims(line_gt*50, 3), tf.uint8), tf.cast(tf.expand_dims(line_prediction*50, 3), tf.uint8)]
+        #       ), 2)
+        # left_prediction = left_prediction*mask
+        # right_prediction = right_prediction*mask
+        indices_l = tf.cast(tf.equal(left_prediction,left_gt), tf.float32)
+        indices_r = tf.cast(tf.equal(right_prediction, right_gt), tf.float32)
+        min_dis_l = tf.minimum(left_prediction,left_gt)+indices_l
+        min_dis_r = tf.minimum(right_prediction,right_gt)+indices_r
+        max_dis_l = tf.maximum(left_prediction,left_gt)+indices_l
+        max_dis_r = tf.maximum(right_prediction,right_gt)+indices_r
+        value = (min_dis_l+min_dis_r)/(max_dis_l+max_dis_r)
+        mat = 1.0 - value
+        tf.summary.image(self._name+'/reg_mat', tf.cast(tf.expand_dims(mat*255, 3), tf.uint8), 1)
+        raw_loss_reg = tf.reduce_mean(mat)
+        return raw_loss_reg
+
+def _seg_loss_gauss(prediction, gt, name=None):
+    with tf.variable_scope(name + '/binary_loss'):
+        feature_size = prediction.get_shape().as_list()[0:3]
+        prediction = tf.nn.sigmoid(tf.cast(prediction, tf.float32))
+        gt = tf.cast(gt, tf.float32)
+
+        gt = _slice_feature(tf.expand_dims(gt, 3))
+
+        tf.summary.image(name+'/gauss_gt', tf.concat(axis=2,
+          values=[ tf.cast(gt, tf.uint8), tf.cast(prediction*255, tf.uint8)]
+          ), 1)
+        prediction = tf.squeeze(prediction)
+        gt = tf.squeeze(gt)
+        raw_loss = tf.losses.mean_squared_error(prediction, gt/255)*20
+
+        half_prediction = tf.slice(prediction,
+                    begin=[0, 0, 0],
+                    size=[feature_size[0], feature_size[1]/2, feature_size[2]])
+        half_gt = tf.slice(gt,
+                    begin=[0, 0, 0],
+                    size=[feature_size[0], feature_size[1]/2, feature_size[2]])
+        loss_plus = tf.losses.mean_squared_error(half_prediction, half_gt/255)*20
+      return raw_loss+loss_plus
+
 class LaneNet(cnn_basenet.CNNBaseModel):
     """
     Lane detection model
@@ -134,7 +207,9 @@ class LaneNet(cnn_basenet.CNNBaseModel):
                 shape=[decode_logits.get_shape().as_list()[0],
                        decode_logits.get_shape().as_list()[1] * decode_logits.get_shape().as_list()[2],
                        decode_logits.get_shape().as_list()[3]])
-
+            # tf.summary.image(name+'/line_gt', tf.concat(axis=2,
+            #               values=[ tf.cast(gt, tf.uint8), tf.cast(prediction*255, tf.uint8)]
+            #               ), 1)
             binary_label_reshape = tf.reshape(
                 binary_label,
                 shape=[binary_label.get_shape().as_list()[0],
@@ -154,7 +229,13 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             existence_loss = tf.reduce_mean(existence_loss)
 
             # Compute the lane segmentation loss
+            lane_logits = inference_ret['lane_seg']
+            lane_segmentation_loss = _seg_loss_gauss(lane_logits, lane_binary)
+            import pdb;pdb.set_trace()
             # Compute the lane regression loss
+            lane_dismap = inference_ret['lane_reg']
+            lane_regress_loss = _regress_loss_new(lane_dismap, lane_lmap, lane_rmap, lane_binary)
+            import pdb;pdb.set_trace()
         # Compute the overall loss
 
         total_loss = binary_segmentation_loss + 0.1 * existence_loss

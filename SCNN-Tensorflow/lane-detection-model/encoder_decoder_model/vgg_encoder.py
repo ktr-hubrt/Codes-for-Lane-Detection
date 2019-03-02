@@ -578,28 +578,28 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
             existence_output = fc_output
 
             ret['existence_output'] = existence_output
-            # # lane area segmentation
-            # conv_2 = self._conv_stage(input_tensor=conv, k_size=3,
-            #                             out_dims=64, name='conv2_2')
-            # conv_2 = self._conv_stage(input_tensor=conv_2, k_size=1,
-            #                             out_dims=32, name='conv3_2')
-            # conv_2 = self._conv_stage(input_tensor=conv_2, k_size=3,
-            #                             out_dims=32, name='conv4_2')
-            # conv_output_2 = self.conv2d(inputdata=conv_2, out_channel=4,
-            #                             kernel_size=1, use_bias=True, name='conv_5_2')
+            # lane area segmentation
+            conv_2 = self._conv_stage(input_tensor=conv, k_size=3,
+                                        out_dims=64, name='conv2_2')
+            conv_2 = self._conv_stage(input_tensor=conv_2, k_size=1,
+                                        out_dims=32, name='conv3_2')
+            conv_2 = self._conv_stage(input_tensor=conv_2, k_size=3,
+                                        out_dims=32, name='conv4_2')
+            conv_output_2 = self.conv2d(inputdata=conv_2, out_channel=4,
+                                        kernel_size=1, use_bias=True, name='conv_5_2')
 
-            # ret['lane_seg'] = tf.image.resize_images(conv_output_2, [CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
-            # # lane area regresstion
-            # conv_3 = self._conv_stage(input_tensor=conv, k_size=3,
-            #                             out_dims=64, name='conv2_3')
-            # conv_3 = self._conv_stage(input_tensor=conv_3, k_size=1,
-            #                             out_dims=32, name='conv3_3')
-            # conv_3 = self._conv_stage(input_tensor=conv_3, k_size=3,
-            #                             out_dims=32, name='conv4_3')
-            # conv_output_3 = self.conv2d(inputdata=conv_3, out_channel=2,
-            #                             kernel_size=1, use_bias=True, name='conv_5_3')
+            ret['lane_seg'] = tf.image.resize_images(conv_output_2, [CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
+            # lane area regresstion
+            conv_3 = self._conv_stage(input_tensor=conv, k_size=3,
+                                        out_dims=64, name='conv2_3')
+            conv_3 = self._conv_stage(input_tensor=conv_3, k_size=1,
+                                        out_dims=32, name='conv3_3')
+            conv_3 = self._conv_stage(input_tensor=conv_3, k_size=3,
+                                        out_dims=32, name='conv4_3')
+            conv_output_3 = self.conv2d(inputdata=conv_3, out_channel=2,
+                                        kernel_size=1, use_bias=True, name='conv_5_3')
 
-            # ret['lane_reg'] = tf.image.resize_images(conv_output_3, [CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
+            ret['lane_reg'] = tf.image.resize_images(conv_output_3, [CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
 
             
 
