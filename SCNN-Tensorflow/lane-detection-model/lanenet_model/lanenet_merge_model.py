@@ -38,7 +38,7 @@ def _slice_feature(feature_maps):
     xbin = size[1] // _x_bin
     xbeg = _xbegin * xbin
     xsize = _xsize * xbin
-
+    # import pdb;pdb.set_trace()
     size = feature_maps.shape.as_list()
     slice_feature_maps = tf.strided_slice(feature_maps,
             begin=[0, ybeg, xbeg, 0],
