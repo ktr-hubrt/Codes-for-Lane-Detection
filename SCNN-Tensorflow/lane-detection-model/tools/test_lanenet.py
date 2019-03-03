@@ -86,6 +86,7 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
                 print(image_name)
                 parent_path = os.path.dirname(image_name)
                 directory = os.path.join(save_dir, 'vgg_SCNN_DULR_w9', parent_path)
+                import pdb;pdb.set_trace()
                 if not os.path.exists(directory):
                     os.makedirs(directory)
                 file_exist = open(os.path.join(directory, os.path.basename(image_name)[:-3] + 'exist.txt'), 'w')
