@@ -68,6 +68,9 @@ def average_gradients(tower_grads):
     """
     average_grads = []
     for grad_and_vars in zip(*tower_grads):
+        if grad_and_vars[0][0] is None:
+            print('No gradient on var {}'.format(grad_and_vars[0][1].name))
+            continue
         # Note that each grad_and_vars looks like the following:
         #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
         grads = []

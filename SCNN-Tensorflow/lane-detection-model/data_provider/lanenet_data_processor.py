@@ -76,12 +76,12 @@ class DataSet(object):
                 img_list.append('data/'+info_tmp[0][1:])
                 line_instance_list.append('data/'+info_tmp[1][1:])
                 line_existence_list.append([int(info_tmp[2]), int(info_tmp[3]), int(info_tmp[4]), int(info_tmp[5])])
-                lane_binary_list.append('data/'+info_tmp[0][1:])
-                lane_lmap_list.append('data/'+info_tmp[0][1:])
-                lane_rmap_list.append('data/'+info_tmp[0][1:])
-                # lane_binary_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_gaush.png'))
-                # lane_lmap_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_l_3.png'))
-                # lane_rmap_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_r_3.png'))
+                # lane_binary_list.append('data/'+info_tmp[0][1:])
+                # lane_lmap_list.append('data/'+info_tmp[0][1:])
+                # lane_rmap_list.append('data/'+info_tmp[0][1:])
+                lane_binary_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_gaush.png'))
+                lane_lmap_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_l_3.png'))
+                lane_rmap_list.append('data/result_test/'+info_tmp[1][19:].replace('.png','_r_3.png'))
                 
 
         self._len = len(img_list)
