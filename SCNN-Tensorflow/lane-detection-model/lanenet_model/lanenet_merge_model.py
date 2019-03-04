@@ -206,40 +206,31 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             # Compute the segmentation loss
 
             decode_logits = inference_ret['prob_output']
-            # decode_logits_reshape = tf.reshape(
-            #     decode_logits,
-            #     shape=[decode_logits.get_shape().as_list()[0],
-            #            decode_logits.get_shape().as_list()[1] * decode_logits.get_shape().as_list()[2],
-            #            decode_logits.get_shape().as_list()[3]])
-            # # tf.summary.image(name+'/line_gt', tf.concat(axis=2,
-            # #               values=[ tf.cast(gt, tf.uint8), tf.cast(prediction*255, tf.uint8)]
-            # #               ), 1)
-            # binary_label_reshape = tf.reshape(
-            #     binary_label,
-            #     shape=[binary_label.get_shape().as_list()[0],
-            #            binary_label.get_shape().as_list()[1] * binary_label.get_shape().as_list()[2]])
-            # binary_label_reshape = tf.one_hot(binary_label_reshape, depth=5)
-            # class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0, 1.0]])
-            # weights_loss = tf.reduce_sum(tf.multiply(binary_label_reshape, class_weights), 2)
-            # binary_segmentation_loss = tf.losses.softmax_cross_entropy(onehot_labels=binary_label_reshape,
-            #                                                            logits=decode_logits_reshape,
-            #                                                            weights=weights_loss)
-            # binary_segmentation_loss = tf.reduce_mean(binary_segmentation_loss)
+            decode_logits_reshape = tf.reshape(
+                decode_logits,
+                shape=[decode_logits.get_shape().as_list()[0],
+                       decode_logits.get_shape().as_list()[1] * decode_logits.get_shape().as_list()[2],
+                       decode_logits.get_shape().as_list()[3]])
+            # tf.summary.image(name+'/line_gt', tf.concat(axis=2,
+            #               values=[ tf.cast(gt, tf.uint8), tf.cast(prediction*255, tf.uint8)]
+            #               ), 1)
+            binary_label_reshape = tf.reshape(
+                binary_label,
+                shape=[binary_label.get_shape().as_list()[0],
+                       binary_label.get_shape().as_list()[1] * binary_label.get_shape().as_list()[2]])
+            binary_label_reshape = tf.one_hot(binary_label_reshape, depth=5)
+            class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0, 1.0]])
+            weights_loss = tf.reduce_sum(tf.multiply(binary_label_reshape, class_weights), 2)
+            binary_segmentation_loss = tf.losses.softmax_cross_entropy(onehot_labels=binary_label_reshape,
+                                                                       logits=decode_logits_reshape,
+                                                                       weights=weights_loss)
+            binary_segmentation_loss = tf.reduce_mean(binary_segmentation_loss)
 
             # Compute the sigmoid loss
 
             existence_logits = inference_ret['existence_output']
-            # existence_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=existence_label, logits=existence_logits)
-            # existence_loss = tf.reduce_mean(existence_loss)
-
-            # Compute the lane segmentation loss
-            lane_logits = inference_ret['lane_seg']
-            lane_segmentation_loss = _seg_loss_gauss(lane_logits, lane_binary, 'lanedet')
-
-            # Compute the lane regression loss
-            lane_dismap = inference_ret['lane_reg']
-            lane_regress_loss = _regress_loss_new(lane_dismap, lane_lmap, lane_rmap, lane_binary, 'lanedet')
-            # import pdb;pdb.set_trace()
+            existence_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=existence_label, logits=existence_logits)
+            existence_loss = tf.reduce_mean(existence_loss)
         # Compute the overall loss
 
         total_loss = lane_regress_loss + 0.1 * lane_segmentation_loss
