@@ -10,7 +10,7 @@ Build Lane detection model
 """
 import tensorflow as tf
 
-from encoder_decoder_model import vgg_encoder
+from encoder_decoder_model import vgg_encoder,res_encoder
 from encoder_decoder_model import cnn_basenet
 # from lanenet_model import LaneDetPredictor
 from config import global_config
@@ -139,14 +139,19 @@ class LaneNet(cnn_basenet.CNNBaseModel):
         :param phase:
         :return:
         """
-        with tf.variable_scope(name):
-            with tf.variable_scope('inference'):
-                encoder = vgg_encoder.VGG16Encoder(phase=phase)
-                # import pdb;pdb.set_trace()
-                input_tensor = _slice_feature(input_tensor)
-                encode_ret = encoder.encode_re(input_tensor=input_tensor, name='encode')
-
-            return encode_ret
+        # with tf.variable_scope(name):
+        #     with tf.variable_scope('inference'):
+        #         encoder = vgg_encoder.VGG16Encoder(phase=phase)
+        #         # import pdb;pdb.set_trace()
+        #         input_tensor = _slice_feature(input_tensor)
+        #         encode_ret = encoder.encode_re(input_tensor=input_tensor, name='encode')
+        #         return encode_ret
+        encoder = res_encoder.ResEncoder(phase=phase)
+        # import pdb;pdb.set_trace()
+        input_tensor = _slice_feature(input_tensor)
+        # encode_ret = encoder.encode_re(input_tensor=input_tensor, name='encode')
+        encode_ret = encoder.decode(input_tensor=input_tensor, name='encode')
+        return encode_ret
 
     @staticmethod
     def test_inference(input_tensor, phase, name):
@@ -246,7 +251,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             # import pdb;pdb.set_trace()
         # Compute the overall loss
 
-        total_loss = 10 * lane_regress_loss + 0.1 * lane_segmentation_loss + 0.05 *binary_segmentation_loss +0.01*existence_loss
+        total_loss = 10 * lane_regress_loss + 0.1 * lane_segmentation_loss + 0.06 *binary_segmentation_loss +0.01*existence_loss
         ret = {
             'total_loss': total_loss,
             'instance_seg_logits': decode_logits,

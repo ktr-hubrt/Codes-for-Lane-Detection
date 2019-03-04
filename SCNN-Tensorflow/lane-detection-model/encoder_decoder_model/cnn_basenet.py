@@ -336,31 +336,33 @@ class CNNBaseModel(object):
         :param name:
         :return:
         """
-        def f1():
-            """
+        # def f1():
+        #     """
 
-            :return:
-            """
-            # print('batch_normalization: train phase')
-            return tf_layer.batch_norm(
-                             inputdata, is_training=True,
-                             center=True, scale=True, updates_collections=None,
-                             scope=name, reuse=False)
+        #     :return:
+        #     """
+        #     # print('batch_normalization: train phase')
+        #     return tf_layer.batch_norm(
+        #                      inputdata, is_training=True,
+        #                      center=True, scale=True, updates_collections=None,
+        #                      scope=name, reuse=False)
 
-        def f2():
-            """
+        # def f2():
+        #     """
 
-            :return:
-            """
-            # print('batch_normalization: test phase')
-            return tf_layer.batch_norm(
-                             inputdata, is_training=False,
-                             center=True, scale=True, updates_collections=None,
-                             scope=name, reuse=True)
+        #     :return:
+        #     """
+        #     # print('batch_normalization: test phase')
+        #     return tf_layer.batch_norm(
+        #                      inputdata, is_training=False,
+        #                      center=True, scale=True, updates_collections=None,
+        #                      scope=name, reuse=True)
 
-        output = tf.cond(is_training, f1, f2)
+        # output = tf.cond(is_training, f1, f2)
 
-        return output
+        return tf_layer.batch_norm(inputdata, is_training=is_training,
+                                     center=True, scale=True, updates_collections=None,
+                                     scope=name, reuse=tf.AUTO_REUSE)
 
     @staticmethod
     def squeeze(inputdata, axis=None, name=None):

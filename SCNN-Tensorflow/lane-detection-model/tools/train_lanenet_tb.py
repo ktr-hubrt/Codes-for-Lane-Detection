@@ -35,7 +35,7 @@ def init_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--dataset_dir', type=str, help='The training dataset dir path')
-    parser.add_argument('--net', type=str, help='Which base net work to use', default='vgg')
+    parser.add_argument('--net', type=str, help='Which base net work to use', default='res')
     parser.add_argument('--weights_path', type=str, help='The pretrained weights path')
     parser.add_argument('--version', type=str, help='the verson', default='test')
     return parser.parse_args()
