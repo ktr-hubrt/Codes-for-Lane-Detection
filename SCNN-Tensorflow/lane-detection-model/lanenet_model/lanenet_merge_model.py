@@ -224,7 +224,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
                 shape=[binary_label.get_shape().as_list()[0],
                        binary_label.get_shape().as_list()[1] * binary_label.get_shape().as_list()[2]])
             binary_label_reshape = tf.one_hot(binary_label_reshape, depth=5)
-            class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0, 1.0]])
+            class_weights = tf.constant([[0.1, 1.0, 1.0, 1.0, 1.0]])
             weights_loss = tf.reduce_sum(tf.multiply(binary_label_reshape, class_weights), 2)
             binary_segmentation_loss = tf.losses.softmax_cross_entropy(onehot_labels=binary_label_reshape,
                                                                        logits=decode_logits_reshape,
