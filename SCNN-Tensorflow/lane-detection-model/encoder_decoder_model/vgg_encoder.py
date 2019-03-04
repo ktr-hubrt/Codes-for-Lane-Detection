@@ -107,25 +107,25 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
         return relu
 
-    def _slice_feature(self,feature_maps):
+    def _slice_feature(self, feature_maps):
         # if self._x_bin==1 and self._xbegin==0 and self._xsize==1 \
         #     and self._y_bin==1 and self._ybegin==0 and self._ysize==1:
         #   return feature_maps
         _x_bin = 1
         _xbegin = 0
         _xsize = 1
-        _x_bin = 3
-        _xbegin = 1
-        _xsize = 2
+        _y_bin = 3
+        _ybegin = 1
+        _ysize = 2
         size = feature_maps.shape.as_list()[1:3]
         assert size[0] % _y_bin == 0
         assert size[1] % _x_bin == 0
 
-        ybin = size[0] /  _y_bin
+        ybin = size[0] //  _y_bin
         ybeg = _ybegin * ybin
         ysize = _ysize * ybin
 
-        xbin = size[1] / _x_bin
+        xbin = size[1] // _x_bin
         xbeg = _xbegin * xbin
         xsize = _xsize * xbin
 
@@ -139,7 +139,7 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
         feature_map_size = tf.shape(input_tensor)
         with tf.variable_scope(name):
             conv_1 = tf.reduce_mean(input_tensor, [1, 2], keep_dims=True)
-            conv_1 = self._conv_stage(input_tensor=input_tensor, k_size=1,
+            conv_1 = self._conv_stage(input_tensor=conv_1, k_size=1,
                                         out_dims=kernel_size, name='conv1')
             conv_1 = tf.image.resize_bilinear(conv_1, (feature_map_size[1], feature_map_size[2]))
             conv_2 = self._conv_stage(input_tensor=input_tensor, k_size=1,
@@ -155,6 +155,72 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
                                         out_dims=kernel_size, name='conv6')
 
         return conv
+
+    def _get_line_lossmap(self, input_tensor, binary_label, name):
+        with tf.variable_scope(name):
+            binary_label = tf.expand_dims(binary_label,3)
+            # import pdb;pdb.set_trace()
+            binary_label = self._slice_feature(binary_label)
+            binary_label = tf.squeeze(binary_label)
+
+            # Compute the segmentation loss
+
+            decode_logits = input_tensor
+            decode_logits_reshape = tf.reshape(
+                decode_logits,
+                shape=[decode_logits.get_shape().as_list()[0],
+                       decode_logits.get_shape().as_list()[1] * decode_logits.get_shape().as_list()[2],
+                       decode_logits.get_shape().as_list()[3]])
+            # tf.summary.image(name+'/line_gt', tf.concat(axis=2,
+            #               values=[ tf.cast(binary_label*50, tf.uint8), tf.cast(tf.expand_dims(tf.argmax(decode_logits,axis=3)*50,3), tf.uint8)]
+            #               ), 1)
+            binary_label = tf.reshape(
+                binary_label,
+                shape=[binary_label.get_shape().as_list()[0],
+                       binary_label.get_shape().as_list()[1] * binary_label.get_shape().as_list()[2]])
+            # import pdb;pdb.set_trace()
+            binary_label_reshape = tf.one_hot(binary_label, depth=5)
+            class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0, 1.0]])
+            weights_loss = tf.reduce_sum(tf.multiply(binary_label_reshape, class_weights), 2)
+            weights_loss = tf.reshape(
+                weights_loss,
+                shape=[decode_logits.get_shape().as_list()[0],
+                       decode_logits.get_shape().as_list()[1],
+                       decode_logits.get_shape().as_list()[2],
+                       1])
+            binary_segmentation_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=decode_logits_reshape, labels=binary_label)
+            binary_segmentation_loss =  tf.reshape(
+                binary_segmentation_loss,
+                shape=[decode_logits.get_shape().as_list()[0],
+                       decode_logits.get_shape().as_list()[1],
+                       decode_logits.get_shape().as_list()[2],
+                       1])
+            binary_segmentation_loss = binary_segmentation_loss*weights_loss
+            # import pdb;pdb.set_trace()
+            return binary_segmentation_loss
+
+    def _loss_module(self, input_tensor, loss_map, name):
+        feature_map_size = tf.shape(input_tensor)
+        # import pdb;pdb.set_trace()
+        with tf.variable_scope(name):
+            loss_0 = tf.reduce_mean(loss_map, [1, 2], keep_dims=True)
+            loss_0 = tf.image.resize_bilinear(loss_0, (feature_map_size[1], feature_map_size[2]))
+
+            loss_1 = self._conv_stage(input_tensor=loss_map, k_size=1,
+                                                out_dims=1, name='conv1')
+            loss_2 = self._conv_stage(input_tensor=loss_map, k_size=5,
+                                                out_dims=1, name='conv2')
+            loss_3 = self._conv_stage(input_tensor=loss_map, k_size=9,
+                                                out_dims=1, name='conv3')
+
+            loss_mat = tf.concat((loss_1, loss_2, loss_3, loss_0), axis=3)
+            loss_mat = self._conv_stage(input_tensor=loss_mat, k_size=1,
+                                        out_dims=1, name='conv6')
+            # import pdb;pdb.set_trace()
+            loss_mat = tf.nn.l2_normalize(loss_mat, dim=3)
+            loss_mat = tf.exp(loss_mat)
+            conv = input_tensor*loss_mat
+            return conv, loss_mat
 
     def encode(self, input_tensor, name):
         """
@@ -361,7 +427,7 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
         return ret
 
-    def encode_re(self, input_tensor, name):
+    def encode_re(self, input_tensor, line_label, name):
         """
         根据vgg16框架对输入的tensor进行编码
         :param input_tensor:
@@ -542,10 +608,20 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
             dropout_output = self.dropout(processed_feature, 0.9, is_training=self._is_training,
                                           name='dropout')  # 0.9 denotes the probability of being kept
-            
+
         #decoder
         with tf.variable_scope('decode'):    
-            conv = tf.image.resize_images(dropout_output, [IMG_HEIGHT//4, CFG.TRAIN.IMG_WIDTH//4])
+            dropout_output = tf.image.resize_images(dropout_output, [IMG_HEIGHT//4, CFG.TRAIN.IMG_WIDTH//4])
+            # import pdb;pdb.set_trace()
+            line_label = tf.expand_dims(line_label,3)
+            line_label = tf.cast(tf.image.resize_images(line_label, [CFG.TRAIN.IMG_HEIGHT//4, CFG.TRAIN.IMG_WIDTH//4]), tf.int32)
+            conv = self.conv2d(inputdata=dropout_output, out_channel=5,
+                            kernel_size=1, use_bias=True, name='conv_out_1')
+            loss_map = self._get_line_lossmap(conv, line_label, 'loss_1')
+            ret['lossmap_1'] = loss_map
+            conv, loss_mat = self._loss_module(dropout_output, loss_map, 'loss_module_1')
+            ret['lossmat_1'] = loss_mat
+
             # import pdb;pdb.set_trace()
             conv = tf.concat([conv,conv_3_3],axis=3)
             # conv = self._slice_feature(conv)
@@ -609,6 +685,9 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 if __name__ == '__main__':
     a = tf.placeholder(dtype=tf.float32, shape=[CFG.TRAIN.BATCH_SIZE, CFG.TRAIN.IMG_HEIGHT*2//3, CFG.TRAIN.IMG_WIDTH, 3],
                        name='input')
+    b = tf.placeholder(dtype=tf.int32, shape=[CFG.TRAIN.BATCH_SIZE, CFG.TRAIN.IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH, 1],
+                       name='input')
     encoder = VGG16Encoder(phase=tf.constant('train', dtype=tf.string))
-    ret = encoder.encode_re(a, name='encode')
+    ret = encoder.encode_re(a,b, name='encode')
+    import pdb;pdb.set_trace()
     print(ret)

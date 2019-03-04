@@ -37,7 +37,7 @@ def init_args():
     parser.add_argument('--dataset_dir', type=str, help='The training dataset dir path')
     parser.add_argument('--net', type=str, help='Which base net work to use', default='vgg')
     parser.add_argument('--weights_path', type=str, help='The pretrained weights path')
-    parser.add_argument('--version', type=str, help='the verson', default='v0.0')
+    parser.add_argument('--version', type=str, help='the verson', default='test')
     return parser.parse_args()
 
 def freeze_para(tower_grads):
@@ -93,11 +93,12 @@ def average_gradients(tower_grads):
 def forward(batch_queue, net, phase, scope, optimizer=None):
     img_batch, label_instance_batch, label_existence_batch, lane_binary_batch, lane_lmap_batch, lane_rmap_batch = batch_queue.dequeue()
     tf.summary.image('img_gt', tf.cast(img_batch+lanenet_data_processor.VGG_MEAN, tf.uint8), 1)
-    inference = net.inference(img_batch, phase, 'lanenet_loss')
+    inference = net.inference(img_batch, label_instance_batch, phase, 'lanenet_loss')
     _ = net.loss(inference, label_instance_batch, label_existence_batch, lane_binary_batch, lane_lmap_batch, lane_rmap_batch, 'lanenet_loss')
     total_loss = tf.add_n(tf.get_collection('total_loss', scope))
     instance_loss = tf.add_n(tf.get_collection('instance_seg_loss', scope))
     existence_loss = tf.add_n(tf.get_collection('existence_pre_loss', scope))
+    mid_line_loss = tf.add_n(tf.get_collection('mid_line_loss', scope))
 
     out_logits = tf.add_n(tf.get_collection('instance_seg_logits', scope))
     # calculate the accuracy
@@ -168,7 +169,7 @@ def forward(batch_queue, net, phase, scope, optimizer=None):
         grads = optimizer.compute_gradients(total_loss)
     else:
         grads = None
-    return total_loss, instance_loss, existence_loss, accuracy, accuracy_back, IoU, out_logits_out, grads
+    return total_loss, instance_loss, existence_loss, mid_line_loss, accuracy, accuracy_back, IoU, out_logits_out, grads
 
 def get_variables_in_checkpoint_file(file_name):
     try:
@@ -279,7 +280,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
         for i in range(CFG.TRAIN.GPU_NUM):
             with tf.device('/gpu:%d' % i):
                 with tf.name_scope('tower_%d' % i) as scope:
-                    total_loss, instance_loss, existence_loss, accuracy, accuracy_back, _, out_logits_out, \
+                    total_loss, instance_loss, existence_loss, mid_line_loss, accuracy, accuracy_back, _, out_logits_out, \
                         grad = forward(batch_queue, net, phase, scope, optimizer)
                     tower_grads.append(grad)
                     summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
@@ -301,6 +302,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
     global_summaries.append(tf.summary.scalar(name='total_cost', tensor=total_loss))
     global_summaries.append(tf.summary.scalar(name='instance_cost', tensor=instance_loss))
     global_summaries.append(tf.summary.scalar(name='exist_cost', tensor=existence_loss))
+    global_summaries.append(tf.summary.scalar(name='mid_line_loss', tensor=mid_line_loss))
     # global_summaries.append(tf.summary.image('img_gt', tf.cast(input_tensor+VGG_MEAN, tf.uint8), 1))
     summary_op = tf.summary.merge(global_summaries, name='summary_op')
     

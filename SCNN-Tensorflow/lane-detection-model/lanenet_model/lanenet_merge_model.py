@@ -131,7 +131,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
 
 
     @staticmethod
-    def inference(input_tensor, phase, name):
+    def inference(input_tensor, label, phase, name):
         """
         feed forward
         :param name:
@@ -144,7 +144,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
                 encoder = vgg_encoder.VGG16Encoder(phase=phase)
                 # import pdb;pdb.set_trace()
                 input_tensor = _slice_feature(input_tensor)
-                encode_ret = encoder.encode_re(input_tensor=input_tensor, name='encode')
+                encode_ret = encoder.encode_re(input_tensor=input_tensor, line_label=label,  name='encode')
 
             return encode_ret
 
@@ -199,7 +199,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             # import pdb;pdb.set_trace()
             binary_label = tf.expand_dims(binary_label,3)
             binary_label = _slice_feature(binary_label)
-            binary_label = tf.squeeze(binary_label)
+            
             # import pdb;pdb.set_trace()
             inference_ret = inference
 
@@ -211,13 +211,14 @@ class LaneNet(cnn_basenet.CNNBaseModel):
                 shape=[decode_logits.get_shape().as_list()[0],
                        decode_logits.get_shape().as_list()[1] * decode_logits.get_shape().as_list()[2],
                        decode_logits.get_shape().as_list()[3]])
-            # tf.summary.image(name+'/line_gt', tf.concat(axis=2,
-            #               values=[ tf.cast(gt, tf.uint8), tf.cast(prediction*255, tf.uint8)]
-            #               ), 1)
+            tf.summary.image(name+'/line_gt', tf.concat(axis=2,
+                          values=[ tf.cast(binary_label*50, tf.uint8), tf.cast(tf.expand_dims(tf.argmax(decode_logits,axis=3)*50,3), tf.uint8)]
+                          ), 1)
             binary_label_reshape = tf.reshape(
                 binary_label,
                 shape=[binary_label.get_shape().as_list()[0],
                        binary_label.get_shape().as_list()[1] * binary_label.get_shape().as_list()[2]])
+            # import pdb;pdb.set_trace()
             binary_label_reshape = tf.one_hot(binary_label_reshape, depth=5)
             class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0, 1.0]])
             weights_loss = tf.reduce_sum(tf.multiply(binary_label_reshape, class_weights), 2)
@@ -231,23 +232,31 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             existence_logits = inference_ret['existence_output']
             existence_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=existence_label, logits=existence_logits)
             existence_loss = tf.reduce_mean(existence_loss)
+
+            # Compute the segmentation loss 1/4
+            loss_map = inference_ret['lossmap_1']
+            mid_line_loss = tf.reduce_mean(loss_map)
+            loss_mat = inference_ret['lossmat_1']
+            tf.summary.image(name+'/line_gt', tf.cast(loss_mat*250, tf.uint8), 4)
         # Compute the overall loss
 
-        total_loss = lane_regress_loss + 0.1 * lane_segmentation_loss
+        total_loss = binary_segmentation_loss + 0.1 * existence_loss + 0.4*mid_line_loss
         ret = {
             'total_loss': total_loss,
             'instance_seg_logits': decode_logits,
-            'instance_seg_loss': lane_segmentation_loss,
+            'instance_seg_loss': binary_segmentation_loss,
+            'mid_line_loss': mid_line_loss,
             'existence_logits': existence_logits,
-            'existence_pre_loss': lane_regress_loss
+            'existence_pre_loss': existence_loss
         }
         # import pdb;pdb.set_trace()
         padd = tf.zeros([CFG.TRAIN.BATCH_SIZE,CFG.TRAIN.IMG_HEIGHT//3, CFG.TRAIN.IMG_WIDTH,5])
         decode_logits = tf.concat([padd,decode_logits],1)
         tf.add_to_collection('total_loss', total_loss)
         tf.add_to_collection('instance_seg_logits', decode_logits)
-        tf.add_to_collection('instance_seg_loss', lane_segmentation_loss)
+        tf.add_to_collection('instance_seg_loss', binary_segmentation_loss)
+        tf.add_to_collection('mid_line_loss', mid_line_loss)
         tf.add_to_collection('existence_logits', existence_logits)
-        tf.add_to_collection('existence_pre_loss',lane_regress_loss)
+        tf.add_to_collection('existence_pre_loss', existence_loss)
 
         return ret
