@@ -38,15 +38,15 @@ def _slice_feature(feature_maps):
     xbin = size[1] // _x_bin
     xbeg = _xbegin * xbin
     xsize = _xsize * xbin
-    import pdb;pdb.set_trace()
+    # import pdb;pdb.set_trace()
     size = feature_maps.shape.as_list()
-    slice_feature_maps = tf.strided_slice(feature_maps,
-            begin=[0, ybeg, xbeg, 0],
-            end=[size[0], ybeg+ysize, xbeg+xsize, size[3]])
-    #slice_feature_maps = tf.slice(feature_maps,
-    #        begin=[0, ybeg, xbeg, 0],
-    #        size=[-1, ysize, xsize, -1])
-
+    # slice_feature_maps = tf.strided_slice(feature_maps,
+    #         begin=[0, ybeg, xbeg, 0],
+    #         end=[size[0], ybeg+ysize, xbeg+xsize, size[3]])
+    slice_feature_maps = tf.slice(feature_maps,
+           begin=[0, ybeg, xbeg, 0],
+           size=[-1, ysize, xsize, -1])
+    # import pdb;pdb.set_trace()
     return slice_feature_maps
 
 def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
@@ -156,6 +156,8 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             # Compute loss
 
             decode_logits = inference_ret['prob_output']
+            padd = tf.zeros([1,CFG.TRAIN.IMG_HEIGHT//3, CFG.TRAIN.IMG_WIDTH,5])
+            decode_logits = tf.concat([padd,decode_logits],1)
             binary_seg_ret = tf.nn.softmax(logits=decode_logits)
             prob_list = []
             kernel = tf.get_variable('kernel', [9, 9, 1, 1], initializer=tf.constant_initializer(1.0 / 81),

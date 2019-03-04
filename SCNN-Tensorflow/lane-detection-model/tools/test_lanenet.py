@@ -38,10 +38,9 @@ def init_args():
     parser.add_argument('--image_path', type=str, help='The image path or the src image save dir')
     parser.add_argument('--weights_path', type=str, help='The model weights path')
     parser.add_argument('--is_batch', type=str, help='If test a batch of images', default='false')
-    parser.add_argument('--batch_size', type=int, help='The batch size of the test images', default=8)
+    parser.add_argument('--batch_size', type=int, help='The batch size of the test images', default=1)
     parser.add_argument('--save_dir', type=str, help='Test result image save dir', default=None)
     parser.add_argument('--use_gpu', type=int, help='If use gpu set 1 or 0 instead', default=1)
-
     return parser.parse_args()
 
 
@@ -70,7 +69,7 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
         sess_config = tf.ConfigProto(device_count={'GPU': 1})
     else:
         sess_config = tf.ConfigProto(device_count={'GPU': 0})
-    sess_config.gpu_options.per_process_gpu_memory_fraction = CFG.TEST.GPU_MEMORY_FRACTION
+    # sess_config.gpu_options.per_process_gpu_memory_fraction = CFG.TEST.GPU_MEMORY_FRACTION
     sess_config.gpu_options.allow_growth = CFG.TRAIN.TF_ALLOW_GROWTH
     sess_config.gpu_options.allocator_type = 'BFC'
     sess = tf.Session(config=sess_config)
@@ -85,8 +84,8 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
             for cnt, image_name in enumerate(paths):
                 print(image_name)
                 parent_path = os.path.dirname(image_name)
-                directory = os.path.join(save_dir, 'vgg_SCNN_DULR_w9', parent_path)
-                import pdb;pdb.set_trace()
+                directory = os.path.join('/data2/lvhui/SCNN/experiments/predicts', save_dir, parent_path[5:])
+                # import pdb;pdb.set_trace()
                 if not os.path.exists(directory):
                     os.makedirs(directory)
                 file_exist = open(os.path.join(directory, os.path.basename(image_name)[:-3] + 'exist.txt'), 'w')
@@ -106,11 +105,12 @@ if __name__ == '__main__':
     # init args
     args = init_args()
 
-    if args.save_dir is not None and not ops.exists(args.save_dir):
+    save_dir = os.path.join('/data2/lvhui/SCNN/experiments/predicts', args.save_dir)
+    if save_dir is not None and not ops.exists(save_dir):
         log.error('{:s} not exist and has been made'.format(args.save_dir))
-        os.makedirs(args.save_dir)
+        os.makedirs(save_dir)
 
-    save_dir = os.path.join(args.image_path, 'predicts')
+    
     if args.save_dir is not None:
         save_dir = args.save_dir
 

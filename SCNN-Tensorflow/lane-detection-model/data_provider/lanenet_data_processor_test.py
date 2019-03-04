@@ -46,8 +46,8 @@ class DataSet(object):
         with open(self._dataset_info_file, 'r') as file:
             for _info in file:
                 info_tmp = _info.strip(' ').split()
-                img_list.append(info_tmp[0][1:])
-
+                img_list.append('data/'+info_tmp[0][1:])
+                # import pdb;pdb.set_trace()
         self._len = len(img_list)
 
         return img_list
