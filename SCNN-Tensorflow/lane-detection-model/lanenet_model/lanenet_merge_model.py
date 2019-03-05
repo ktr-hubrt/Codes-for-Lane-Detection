@@ -40,12 +40,12 @@ def _slice_feature(feature_maps):
     xsize = _xsize * xbin
     # import pdb;pdb.set_trace()
     size = feature_maps.shape.as_list()
-    slice_feature_maps = tf.strided_slice(feature_maps,
-            begin=[0, ybeg, xbeg, 0],
-            end=[size[0], ybeg+ysize, xbeg+xsize, size[3]])
-    #slice_feature_maps = tf.slice(feature_maps,
-    #        begin=[0, ybeg, xbeg, 0],
-    #        size=[-1, ysize, xsize, -1])
+    # slice_feature_maps = tf.strided_slice(feature_maps,
+    #         begin=[0, ybeg, xbeg, 0],
+    #         end=[size[0], ybeg+ysize, xbeg+xsize, size[3]])
+    slice_feature_maps = tf.slice(feature_maps,
+           begin=[0, ybeg, xbeg, 0],
+           size=[-1, ysize, xsize, -1])
 
     return slice_feature_maps
 
