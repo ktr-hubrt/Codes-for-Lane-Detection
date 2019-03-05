@@ -149,6 +149,24 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             return encode_ret
 
     @staticmethod
+    def predict(input_tensor, phase, name):
+        """
+        feed forward
+        :param name:
+        :param input_tensor:
+        :param phase:
+        :return:
+        """
+        with tf.variable_scope(name):
+            with tf.variable_scope('inference'):
+                encoder = vgg_encoder.VGG16Encoder(phase=phase)
+                # import pdb;pdb.set_trace()
+                input_tensor = _slice_feature(input_tensor)
+                encode_ret = encoder.encode_re(input_tensor=input_tensor, name='encode')
+
+            return encode_ret
+
+    @staticmethod
     def test_inference(input_tensor, phase, name):
         inference_ret = LaneNet.inference(input_tensor, phase, name)
         with tf.variable_scope(name):
