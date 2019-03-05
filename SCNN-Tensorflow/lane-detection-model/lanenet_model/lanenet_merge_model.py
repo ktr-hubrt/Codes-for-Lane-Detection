@@ -251,8 +251,9 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             # import pdb;pdb.set_trace()
         # Compute the overall loss
 
-        total_loss = 10 * lane_regress_loss + 0.1 * lane_segmentation_loss + 0.1 *binary_segmentation_loss +0.01*existence_loss
+        # total_loss = 10 * lane_regress_loss + 0.1 * lane_segmentation_loss + 0.1 *binary_segmentation_loss +0.01*existence_loss
         # total_loss = binary_segmentation_loss + 0.1*existence_loss
+        total_loss = lane_segmentation_loss + binary_segmentation_loss + 0.1*existence_loss
         ret = {
             'total_loss': total_loss,
             'instance_seg_logits': decode_logits,
