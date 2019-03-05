@@ -156,6 +156,8 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             # Compute loss
 
             decode_logits = inference_ret['prob_output']
+            padd = tf.zeros([1,CFG.TRAIN.IMG_HEIGHT//3, CFG.TRAIN.IMG_WIDTH,5])
+            decode_logits = tf.concat([padd,decode_logits],1)
             binary_seg_ret = tf.nn.softmax(logits=decode_logits)
             prob_list = []
             kernel = tf.get_variable('kernel', [9, 9, 1, 1], initializer=tf.constant_initializer(1.0 / 81),
