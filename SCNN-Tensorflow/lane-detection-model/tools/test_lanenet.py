@@ -38,7 +38,7 @@ def init_args():
     parser.add_argument('--image_path', type=str, help='The image path or the src image save dir')
     parser.add_argument('--weights_path', type=str, help='The model weights path')
     parser.add_argument('--is_batch', type=str, help='If test a batch of images', default='false')
-    parser.add_argument('--batch_size', type=int, help='The batch size of the test images', default=1)
+    parser.add_argument('--batch_size', type=int, help='The batch size of the test images', default=8)
     parser.add_argument('--save_dir', type=str, help='Test result image save dir', default=None)
     parser.add_argument('--use_gpu', type=int, help='If use gpu set 1 or 0 instead', default=1)
     return parser.parse_args()
@@ -92,7 +92,7 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
                 for cnt_img in range(4):
                     cv2.imwrite(os.path.join(directory, os.path.basename(image_name)[:-4] + '_' + str(cnt_img + 1) + '_avg.png'),
                             (instance_seg_image[cnt, :, :, cnt_img + 1] * 255).astype(int))
-                    if existence_output[cnt, cnt_img] > 0.4:
+                    if existence_output[cnt, cnt_img] > 0.65:
                         file_exist.write('1 ')
                     else:
                         file_exist.write('0 ')
