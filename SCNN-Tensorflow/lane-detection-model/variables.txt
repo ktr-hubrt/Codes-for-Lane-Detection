@@ -461,6 +461,12 @@ encode_line/dense/kernel/Momentum
 encode_line/dense/bias/Momentum
 encode_line/dense_1/kernel/Momentum
 encode_line/dense_1/bias/Momentum
+encode_reg/deconv_1/deconv_1/kernel/Momentum
+encode_reg/deconv_2/deconv_2/kernel/Momentum
+encode_reg/deconv_3/deconv_3/kernel/Momentum
+encode_reg/final_out_reg/weights/Momentum
+encode_reg/final_out_reg/BatchNorm/gamma/Momentum
+encode_reg/final_out_reg/BatchNorm/beta/Momentum
 encode_seg/deconv_1/deconv_1/kernel/Momentum
 encode_seg/deconv_2/deconv_2/kernel/Momentum
 encode_seg/deconv_3/deconv_3/kernel/Momentum
