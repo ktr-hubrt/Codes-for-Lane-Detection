@@ -176,8 +176,14 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
             # import pdb;pdb.set_trace()
             seg_gt_path = ['data/result_test/' +tmp.strip().replace('.jpg','_sur.png') for tmp in image_path_epoch]
             seg_gt_list = [cv2.imread(tmp,0) for tmp in seg_gt_path]
-            lane_gt_path = ['data/result_test/' +tmp.strip().replace('.jpg','_lane.png') for tmp in image_path_epoch]
-            lane_gt_list = [cv2.imread(tmp,0) for tmp in lane_gt_path]
+            # lane_gt_path = ['data/result_test/' +tmp.strip().replace('.jpg','_lane.png') for tmp in image_path_epoch]
+            # lane_gt_list = [cv2.imread(tmp,0) for tmp in lane_gt_path]
+            use_gt = 1
+            if use_gt ==1:
+                reg_l_path = ['data/result_test/' +tmp.strip().replace('.jpg','_l.png') for tmp in image_path_epoch]
+                reg_l_list = [cv2.imread(tmp,0)[96:] for tmp in reg_l_path]
+                reg_r_path = ['data/result_test/' +tmp.strip().replace('.jpg','_r.png') for tmp in image_path_epoch]
+                reg_r_list = [cv2.imread(tmp,0)[96:] for tmp in reg_r_path]
             image_list_epoch = [cv2.resize(tmp, (800, 288), interpolation=cv2.INTER_LINEAR) for tmp in image_list_epoch]
             image_list_epoch = [tmp - VGG_MEAN for tmp in image_list_epoch]
             t_cost = time.time() - t_start
@@ -189,7 +195,13 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
             if 1:
                 binary_seg_images, dis_maps = sess.run(
                     [feature_for_seg, feature_for_reg], feed_dict={input_tensor: image_list_epoch})
+            if use_gt ==1:
+                # import pdb;pdb.set_trace()
+                l_map = np.reshape(reg_l_list[0], [192,800,1])/250.0
+                r_map = np.reshape(reg_r_list[0], [192,800,1])/250.0
+                dis_maps = np.reshape(np.concatenate((l_map, r_map), axis=2),[1,192,800,2])
 
+                # import pdb;pdb.set_trace()
             t_cost = time.time() - t_start
             pred_time.update(t_cost / len(image_path_epoch))
             log.info('[Epoch:{:d}] pred {:d} images, total: {:.5f}s, average: {:.5f}s'.format(
