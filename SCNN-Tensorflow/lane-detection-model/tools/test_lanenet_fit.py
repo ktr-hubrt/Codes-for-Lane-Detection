@@ -33,7 +33,7 @@ from lanenet_model import lanenet_merge_model
 from lanenet_model import lanenet_cluster
 # from lanenet_model import lanenet_postprocess
 from config import global_config
-os.environ["CUDA_VISIBLE_DEVICES"] = '4'
+os.environ["CUDA_VISIBLE_DEVICES"] = '6'
 
 CFG = global_config.cfg
 VGG_MEAN = [103.939, 116.779, 123.68]
@@ -180,9 +180,9 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
             # lane_gt_list = [cv2.imread(tmp,0) for tmp in lane_gt_path]
             use_gt = 1
             if use_gt ==1:
-                reg_l_path = ['data/result_test/' +tmp.strip().replace('.jpg','_l.png') for tmp in image_path_epoch]
+                reg_l_path = ['data/result_test/' +tmp.strip().replace('.jpg','_l_3.png') for tmp in image_path_epoch]
                 reg_l_list = [cv2.imread(tmp,0)[96:] for tmp in reg_l_path]
-                reg_r_path = ['data/result_test/' +tmp.strip().replace('.jpg','_r.png') for tmp in image_path_epoch]
+                reg_r_path = ['data/result_test/' +tmp.strip().replace('.jpg','_r_3.png') for tmp in image_path_epoch]
                 reg_r_list = [cv2.imread(tmp,0)[96:] for tmp in reg_r_path]
             image_list_epoch = [cv2.resize(tmp, (800, 288), interpolation=cv2.INTER_LINEAR) for tmp in image_list_epoch]
             image_list_epoch = [tmp - VGG_MEAN for tmp in image_list_epoch]
