@@ -101,11 +101,14 @@ def forward(batch_queue, net, phase, scope, optimizer=None):
     total_loss = tf.add_n(tf.get_collection('total_loss', scope))
     instance_loss = tf.add_n(tf.get_collection('instance_seg_loss', scope))
     existence_loss = tf.add_n(tf.get_collection('existence_pre_loss', scope))
-    # gaush_loss = tf.add_n(tf.get_collection('lane_seg_loss', scope))
-    # regress_loss = tf.add_n(tf.get_collection('lane_reg_loss', scope))
-    gaush_loss = 0
-    regress_loss = 0
-    line_hard_loss = tf.add_n(tf.get_collection('lane_hard_loss', scope))
+    gaush_loss = tf.add_n(tf.get_collection('lane_seg_loss', scope))
+    regress_loss = tf.add_n(tf.get_collection('lane_reg_loss', scope))
+    # instance_loss = '0'
+    # existence_loss = '0'
+    # gaush_loss = 0
+    # regress_loss = 0
+    line_hard_loss = '0'
+    # line_hard_loss = tf.add_n(tf.get_collection('lane_hard_loss', scope))
 
     out_logits = tf.add_n(tf.get_collection('instance_seg_logits', scope))
     # calculate the accuracy
@@ -215,7 +218,7 @@ def load_model(sess, model_path):
         'Variable',
         #'_lossWt',
         # 'conv_6',
-        # 'reg',
+        'reg',
         #'pix',
         ]
     variables_to_restore = []
@@ -308,10 +311,10 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
 
     global_summaries.append(tf.summary.scalar(name='total_cost', tensor=total_loss))
     global_summaries.append(tf.summary.scalar(name='instance_cost', tensor=instance_loss))
-    global_summaries.append(tf.summary.scalar(name='exist_cost', tensor=existence_loss))
-    # global_summaries.append(tf.summary.scalar(name='gaush_loss', tensor=gaush_loss))
-    # global_summaries.append(tf.summary.scalar(name='regress_loss', tensor=regress_loss))
-    global_summaries.append(tf.summary.scalar(name='line_hard_loss', tensor=line_hard_loss))
+    # global_summaries.append(tf.summary.scalar(name='exist_cost', tensor=existence_loss))
+    global_summaries.append(tf.summary.scalar(name='gaush_loss', tensor=gaush_loss))
+    global_summaries.append(tf.summary.scalar(name='regress_loss', tensor=regress_loss))
+    # global_summaries.append(tf.summary.scalar(name='line_hard_loss', tensor=line_hard_loss))
     # global_summaries.append(tf.summary.image('img_gt', tf.cast(input_tensor+VGG_MEAN, tf.uint8), 1))
     summary_op = tf.summary.merge(global_summaries, name='summary_op')
     

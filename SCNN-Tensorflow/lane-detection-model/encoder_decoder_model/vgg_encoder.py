@@ -139,7 +139,7 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
         feature_map_size = tf.shape(input_tensor)
         with tf.variable_scope(name):
             conv_1 = tf.reduce_mean(input_tensor, [1, 2], keep_dims=True)
-            conv_1 = self._conv_stage(input_tensor=input_tensor, k_size=1,
+            conv_1 = self._conv_stage(input_tensor=conv_1, k_size=1,
                                         out_dims=kernel_size, name='conv1')
             conv_1 = tf.image.resize_bilinear(conv_1, (feature_map_size[1], feature_map_size[2]))
             conv_2 = self._conv_stage(input_tensor=input_tensor, k_size=1,
@@ -591,13 +591,13 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
             ret['lane_seg'] = tf.image.resize_images(conv_output_2, [IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
             # lane area regresstion
             conv_3 = self._conv_stage(input_tensor=conv, k_size=3,
-                                        out_dims=64, name='conv2_3')
+                                        out_dims=64, name='conv2_reg')
             conv_3 = self._conv_stage(input_tensor=conv_3, k_size=1,
-                                        out_dims=32, name='conv3_3')
+                                        out_dims=32, name='conv3_reg')
             conv_3 = self._conv_stage(input_tensor=conv_3, k_size=3,
-                                        out_dims=32, name='conv4_3')
+                                        out_dims=32, name='conv4_reg')
             conv_output_3 = self.conv2d(inputdata=conv_3, out_channel=2,
-                                        kernel_size=1, use_bias=True, name='conv_5_3')
+                                        kernel_size=1, use_bias=True, name='conv_5_reg')
 
             ret['lane_reg'] = tf.image.resize_images(conv_output_3, [IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
 
