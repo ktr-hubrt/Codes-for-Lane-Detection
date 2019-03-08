@@ -906,7 +906,7 @@ class LaneNetCluster(object):
                 coord = np.array([coord])
                 cv2.polylines(img=mask_image, pts=coord, isClosed=False, color=color, thickness=2)
         elif Use_gt ==2:
-            binary_seg_ret = binary_seg_ret>0.5
+            binary_seg_ret = binary_seg_ret>0.2
             instance_seg_ret = binary_seg_ret*gt_seg_ret
             num_cluster = np.max(instance_seg_ret)
 

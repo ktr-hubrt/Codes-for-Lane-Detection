@@ -52,14 +52,14 @@ def _slice_feature(feature_maps):
 def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
     with tf.variable_scope(name + '/regress_loss'):
         # det_gt_mask_l = tf.cast(tf.greater(gt[0],0), tf.int32)
-        prediction = tf.nn.relu(tf.cast(prediction, tf.float32))
+        # prediction = tf.nn.sigmoid(tf.cast(prediction, tf.float32))
         prediction = tf.cast(prediction, tf.float32)
 
         left_gt = _slice_feature(tf.expand_dims(left_gt, 3))
-        left_gt = tf.cast(left_gt, tf.float32)/25.0
+        left_gt = tf.cast(left_gt, tf.float32)/250.0
 
         right_gt = _slice_feature(tf.expand_dims(right_gt, 3))
-        right_gt = tf.cast(right_gt, tf.float32)/25.0
+        right_gt = tf.cast(right_gt, tf.float32)/250.0
 
         # line_gt = self._slice_feature_(tf.expand_dims(gt[2], 3))
         # line_gt = tf.squeeze(line_gt, axis=[3])

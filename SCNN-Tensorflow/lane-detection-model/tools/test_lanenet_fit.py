@@ -33,7 +33,7 @@ from lanenet_model import lanenet_merge_model
 from lanenet_model import lanenet_cluster
 # from lanenet_model import lanenet_postprocess
 from config import global_config
-os.environ["CUDA_VISIBLE_DEVICES"] = '6'
+os.environ["CUDA_VISIBLE_DEVICES"] = '7'
 
 CFG = global_config.cfg
 VGG_MEAN = [103.939, 116.779, 123.68]
@@ -310,7 +310,7 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
             post_time.update(np.mean(cluster_time))
             log.info('[Epoch:{:d}] postpross {:d} images, total: {:.5f}s, average: {:.5f}s'.format(
                 epoch, len(image_path_epoch), np.sum(cluster_time), post_time.avg))
-            import pdb;pdb.set_trace()
+            # import pdb;pdb.set_trace()
             log.info('class_0_iou:{:.5f},class_1_iou:{:.5f}'.format(
                 class_0_iou.avg,class_1_iou.avg))
     f_list.close() 
