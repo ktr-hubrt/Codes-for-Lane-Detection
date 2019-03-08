@@ -130,8 +130,8 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
     pred_ret = net.inference(input_tensor, phase_tensor, name='lanenet_loss')
     feature_for_seg = tf.squeeze(tf.nn.sigmoid(pred_ret['lane_seg']),3)
     feature_for_reg = pred_ret['lane_reg']
-    # import pdb;pdb.set_trace()
-    feature_for_reg = tf.nn.relu(feature_for_reg)
+    import pdb;pdb.set_trace()
+    feature_for_reg = tf.nn.sigmoid(feature_for_reg)
     #feature_for_emb = pred_ret['lane_instance_predictions']
     #feature_for_instance = tf.argmax(feature_for_emb, axis=-1)
     #feature_for_score = tf.nn.softmax(pred_ret['lane_instance_predictions'])
@@ -178,7 +178,7 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
             seg_gt_list = [cv2.imread(tmp,0) for tmp in seg_gt_path]
             # lane_gt_path = ['data/result_test/' +tmp.strip().replace('.jpg','_lane.png') for tmp in image_path_epoch]
             # lane_gt_list = [cv2.imread(tmp,0) for tmp in lane_gt_path]
-            use_gt = 1
+            use_gt = 0
             if use_gt ==1:
                 reg_l_path = ['data/result_test/' +tmp.strip().replace('.jpg','_l_3.png') for tmp in image_path_epoch]
                 reg_l_list = [cv2.imread(tmp,0)[96:] for tmp in reg_l_path]

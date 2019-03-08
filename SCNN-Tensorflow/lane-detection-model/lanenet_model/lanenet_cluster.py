@@ -957,7 +957,7 @@ class LaneNetCluster(object):
         # cv2.imwrite('png/1.png',binary_seg_ret_*255)
         # cv2.imwrite('png/3.png',reg_image[:,:,0]*250)
         # cv2.imwrite('png/0.png',instance_seg_ret*55)
-        # import pdb;pdb.set_trace()
+        import pdb;pdb.set_trace()
 
         points_all=[]
         params_l = []
