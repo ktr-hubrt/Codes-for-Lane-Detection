@@ -55,10 +55,10 @@ def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
         prediction = tf.nn.relu(tf.cast(prediction, tf.float32))
 
         left_gt = _slice_feature(tf.expand_dims(left_gt, 3))
-        left_gt = tf.cast(left_gt, tf.float32)/25
+        left_gt = tf.cast(left_gt, tf.float32)/250.0
 
         right_gt = _slice_feature(tf.expand_dims(right_gt, 3))
-        right_gt = tf.cast(right_gt, tf.float32)/25
+        right_gt = tf.cast(right_gt, tf.float32)/250.0
 
         # line_gt = self._slice_feature_(tf.expand_dims(gt[2], 3))
         # line_gt = tf.squeeze(line_gt, axis=[3])
@@ -74,10 +74,10 @@ def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
         # tf.summary.image(self._name+'/lab_line_gt', tf.cast(tf.expand_dims(line_gt*200, 3), tf.uint8), 2)
         # import pdb;pdb.set_trace()
         tf.summary.image(name+'/lab_left_gt', tf.concat(axis=2,
-              values=[tf.cast(left_gt*25, tf.uint8), tf.cast(tf.expand_dims(left_prediction*25, 3), tf.uint8)]
+              values=[tf.cast(left_gt*250, tf.uint8), tf.cast(tf.expand_dims(left_prediction*250, 3), tf.uint8)]
               ), 1)
         tf.summary.image(name+'/lab_right_gt', tf.concat(axis=2,
-              values=[tf.cast(right_gt*25, tf.uint8), tf.cast(tf.expand_dims(right_prediction*25, 3), tf.uint8)]
+              values=[tf.cast(right_gt*250, tf.uint8), tf.cast(tf.expand_dims(right_prediction*250, 3), tf.uint8)]
               ), 1)
         # tf.summary.image(self._name+'/lab_line_gt', tf.concat(axis=2,
         #       values=[tf.cast(tf.expand_dims(line_gt*50, 3), tf.uint8), tf.cast(tf.expand_dims(line_prediction*50, 3), tf.uint8)]
@@ -415,7 +415,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
         # Compute the overall loss
 
         # total_loss = binary_segmentation_loss + 0.1*existence_loss + 0.5*hard_line_loss
-        total_loss = 0.1*lane_segmentation_loss + 20*lane_regress_loss + 0.1*binary_segmentation_loss
+        total_loss = 0.1*lane_segmentation_loss + lane_regress_loss + 0.1*binary_segmentation_loss
         ret = {
             'total_loss': total_loss,
             'instance_seg_logits': decode_logits,

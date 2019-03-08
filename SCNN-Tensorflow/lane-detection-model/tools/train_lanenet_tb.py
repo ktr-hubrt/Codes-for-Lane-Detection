@@ -273,7 +273,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
     global_step = tf.Variable(0, trainable=False)
 
     learning_rate = tf.train.polynomial_decay(CFG.TRAIN.LEARNING_RATE, global_step,
-                                              CFG.TRAIN.EPOCHS, power=0.9)
+                                              CFG.TRAIN.EPOCHS, end_learning_rate=0.000001, power=0.9)
     global_summaries.add(tf.summary.scalar('Learning_Rate', learning_rate))
 
     optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=0.9)
