@@ -84,8 +84,8 @@ def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
         #       ), 2)
         # left_prediction = left_prediction*mask
         # right_prediction = right_prediction*mask
-        left_gt = tf.squeeze(left_gt)
-        right_gt = tf.squeeze(right_gt)
+        left_gt = tf.squeeze(left_gt)+0.001
+        right_gt = tf.squeeze(right_gt)+0.001
 
         min_dis_l = tf.minimum(left_prediction,left_gt)
         min_dis_r = tf.minimum(right_prediction,right_gt)
