@@ -158,7 +158,7 @@ def _seg_loss_hard(prediction, images, gt, name, aux_loss_type=1):
       raw_loss = tf.reshape(raw_loss,feature_size[0:3])
       raw_loss = tf.multiply(raw_loss,weights_loss)
       if aux_loss_type==1:
-        region_size=10
+        region_size=6
         half_region_size = region_size//2
         #images = [tf.image.resize_nearest_neighbor(tf.expand_dims(x,0), size) for x in images]
         images = tf.cast(images, tf.float32)
