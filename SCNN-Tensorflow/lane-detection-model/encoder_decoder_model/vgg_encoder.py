@@ -602,7 +602,7 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
             ret['lane_reg'] = tf.image.resize_images(conv_output_3, [IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
 
-            
+            ret['combine'] = tf.concat([ret['lane_seg'],ret['lane_reg']],axis=3)
 
         return ret
 
