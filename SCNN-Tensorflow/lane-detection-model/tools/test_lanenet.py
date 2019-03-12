@@ -23,7 +23,7 @@ except ImportError:
 from lanenet_model import lanenet_merge_model
 from config import global_config
 from data_provider import lanenet_data_processor_test
-
+import numpy as np
 
 CFG = global_config.cfg
 VGG_MEAN = [103.939, 116.779, 123.68]
@@ -60,7 +60,7 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
     phase_tensor = tf.constant('test', tf.string)
 
     net = lanenet_merge_model.LaneNet()
-    binary_seg_ret, instance_seg_ret = net.test_inference(imgs, phase_tensor, 'lanenet_loss')
+    binary_seg_ret, instance_seg_ret, lane_seg_ret, lane_reg_ret = net.test_inference(imgs, phase_tensor, 'lanenet_loss')
     initial_var = tf.global_variables()
     final_var = initial_var[:-1]
     saver = tf.train.Saver(final_var)
@@ -92,7 +92,7 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
                 for cnt_img in range(4):
                     cv2.imwrite(os.path.join(directory, os.path.basename(image_name)[:-4] + '_' + str(cnt_img + 1) + '_avg.png'),
                             (instance_seg_image[cnt, :, :, cnt_img + 1] * 255).astype(int))
-                    if existence_output[cnt, cnt_img] > 0.5:
+                    if np.max(instance_seg_image[cnt, :, :, cnt_img + 1]) > 0.85:
                         file_exist.write('1 ')
                     else:
                         file_exist.write('0 ')

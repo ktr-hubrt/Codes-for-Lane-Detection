@@ -52,7 +52,7 @@ def _slice_feature(feature_maps):
 def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
     with tf.variable_scope(name + '/regress_loss'):
         # det_gt_mask_l = tf.cast(tf.greater(gt[0],0), tf.int32)
-        prediction = tf.nn.sigmoid(tf.cast(prediction, tf.float32))
+        prediction = tf.cast(prediction, tf.float32)
 
         left_gt = _slice_feature(tf.expand_dims(left_gt, 3))
         left_gt = tf.cast(left_gt, tf.float32)/250.0
@@ -96,6 +96,8 @@ def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
         tf.summary.image(name+'/reg_mat', tf.cast(tf.expand_dims(mat*255, 3), tf.uint8), 1)
         raw_loss_reg = tf.reduce_mean(mat)
         # import pdb;pdb.set_trace()
+        # raw_loss_reg = tf.Print(raw_loss_reg,[tf.reduce_max(left_gt),tf.reduce_max(right_gt)],'gt:')
+        # raw_loss_reg = tf.Print(raw_loss_reg,[tf.reduce_max(left_prediction),tf.reduce_max(right_prediction)],'pred:')
         return raw_loss_reg
 
 def _seg_loss_gauss(prediction, gt, name=None):
@@ -365,7 +367,13 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             existence_logit = inference_ret['existence_output']
             existence_output = tf.nn.sigmoid(existence_logit)
 
-            return binary_seg_ret, existence_output
+            lane_seg = inference_ret['lane_seg']
+            feature_for_seg = tf.squeeze(tf.nn.sigmoid(lane_seg),3)
+            feature_for_reg = inference_ret['lane_reg']
+            # import pdb;pdb.set_trace()
+            feature_for_reg = tf.nn.sigmoid(tf.cast(feature_for_reg, tf.float32))
+
+            return binary_seg_ret, existence_output, feature_for_seg, feature_for_reg
 
     @staticmethod
     def loss(inference, binary_label, existence_label, lane_binary, lane_lmap, lane_rmap, images, name):
