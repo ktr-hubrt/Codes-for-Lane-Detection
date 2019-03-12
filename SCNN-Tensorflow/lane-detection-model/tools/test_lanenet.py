@@ -84,7 +84,7 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
             for cnt, image_name in enumerate(paths):
                 print(image_name)
                 parent_path = os.path.dirname(image_name)
-                directory = os.path.join('/data2/lvhui/SCNN/experiments/predicts', save_dir, parent_path[5:])
+                directory = os.path.join('/data3/CULane/predicts', save_dir, parent_path[5:])
                 # import pdb;pdb.set_trace()
                 if not os.path.exists(directory):
                     os.makedirs(directory)
@@ -92,7 +92,7 @@ def test_lanenet(image_path, weights_path, use_gpu, image_list, batch_size, save
                 for cnt_img in range(4):
                     cv2.imwrite(os.path.join(directory, os.path.basename(image_name)[:-4] + '_' + str(cnt_img + 1) + '_avg.png'),
                             (instance_seg_image[cnt, :, :, cnt_img + 1] * 255).astype(int))
-                    if existence_output[cnt, cnt_img] > 0.65:
+                    if existence_output[cnt, cnt_img] > 0.5:
                         file_exist.write('1 ')
                     else:
                         file_exist.write('0 ')
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     # init args
     args = init_args()
 
-    save_dir = os.path.join('/data2/lvhui/SCNN/experiments/predicts', args.save_dir)
+    save_dir = os.path.join('/data3/CULane/predicts', args.save_dir)
     if save_dir is not None and not ops.exists(save_dir):
         log.error('{:s} not exist and has been made'.format(args.save_dir))
         os.makedirs(save_dir)

@@ -143,8 +143,8 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             with tf.variable_scope('inference'):
                 encoder = vgg_encoder.VGG16Encoder(phase=phase)
                 # import pdb;pdb.set_trace()
-                input_tensor = _slice_feature(input_tensor)
-                encode_ret = encoder.encode_re(input_tensor=input_tensor, name='encode')
+                # input_tensor = _slice_feature(input_tensor)
+                encode_ret = encoder.encode(input_tensor=input_tensor, name='encode')
 
             return encode_ret
 
