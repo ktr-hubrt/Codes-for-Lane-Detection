@@ -64,8 +64,9 @@ def _regress_loss_new(prediction, left_gt, right_gt, mask, name=None):
         # line_gt = tf.squeeze(line_gt, axis=[3])
         # det_gt_mask_line = tf.cast(tf.greater(line_gt,0), tf.float32)
         mask = _slice_feature(tf.expand_dims(mask, 3))
-        mask = tf.cast(tf.squeeze(mask, axis=[3]), tf.float32)
-
+        mask = tf.cast(tf.greater(mask,0), tf.float32)
+        # tf.summary.image(name+'/lana_binary', tf.cast(mask*250, tf.uint8), 1)
+        mask = tf.squeeze(mask, axis=[3])
         left_prediction = prediction[:,:,:,0]*mask+0.001#*det_gt_mask_l
         right_prediction = prediction[:,:,:,1]*mask+0.001#*det_gt_mask_r
         # line_prediction = prediction[:,:,:,2]#*det_gt_mask_line
@@ -423,7 +424,8 @@ class LaneNet(cnn_basenet.CNNBaseModel):
         # Compute the overall loss
 
         # total_loss = binary_segmentation_loss + 0.1*existence_loss + 0.5*hard_line_loss
-        total_loss = 0.1*lane_segmentation_loss + lane_regress_loss + 0.1*binary_segmentation_loss
+        total_loss = lane_segmentation_loss + 10*lane_regress_loss + 0.5*binary_segmentation_loss
+        # total_loss = 100*lane_regress_loss 
         ret = {
             'total_loss': total_loss,
             'instance_seg_logits': decode_logits,
