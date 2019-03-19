@@ -218,7 +218,7 @@ def load_model(sess, model_path):
         'Variable',
         #'_lossWt',
         # 'conv_6',
-        'reg',
+        # 'reg',
         #'pix',
         ]
     variables_to_restore = []
