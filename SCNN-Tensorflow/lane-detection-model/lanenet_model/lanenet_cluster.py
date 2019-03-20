@@ -928,7 +928,7 @@ class LaneNetCluster(object):
                 mask_image[coord]=color
         else:
             #import pdb;pdb.set_trace()
-            binary_seg_ret = binary_seg_ret>0.7
+            binary_seg_ret = binary_seg_ret>0.8
             #import pdb;pdb.set_trace()
             mid[:,:,1] = binary_seg_ret * 255
             mask_tmp = cv2.cvtColor(mid, cv2.COLOR_BGR2GRAY)
@@ -939,7 +939,7 @@ class LaneNetCluster(object):
             for i in range(len(contours)):
                 cnt = contours[i]
                 area = cv2.contourArea(cnt)
-                if area >288:
+                if area >1288:
                     label_ind.append(i+1)
                     label_x.append(np.mean(cnt[:,:,0]))
                     # import pdb;pdb.set_trace()
