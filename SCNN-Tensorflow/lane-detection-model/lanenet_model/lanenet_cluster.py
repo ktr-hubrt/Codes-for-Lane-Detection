@@ -928,7 +928,7 @@ class LaneNetCluster(object):
                 mask_image[coord]=color
         else:
             #import pdb;pdb.set_trace()
-            binary_seg_ret = binary_seg_ret>0.8
+            binary_seg_ret = binary_seg_ret>0.7
             #import pdb;pdb.set_trace()
             mid[:,:,1] = binary_seg_ret * 255
             mask_tmp = cv2.cvtColor(mid, cv2.COLOR_BGR2GRAY)

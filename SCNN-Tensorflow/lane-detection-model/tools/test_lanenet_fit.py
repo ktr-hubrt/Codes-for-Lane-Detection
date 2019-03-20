@@ -33,7 +33,7 @@ from lanenet_model import lanenet_merge_model
 from lanenet_model import lanenet_cluster
 # from lanenet_model import lanenet_postprocess
 from config import global_config
-os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+os.environ["CUDA_VISIBLE_DEVICES"] = '4'
 
 CFG = global_config.cfg
 VGG_MEAN = [103.939, 116.779, 123.68]
