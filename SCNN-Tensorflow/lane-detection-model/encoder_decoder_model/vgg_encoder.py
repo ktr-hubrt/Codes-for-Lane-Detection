@@ -555,30 +555,30 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
             # lane marking segmentation
             conv_1 = self._conv_stage(input_tensor=conv, k_size=3,
-                                        out_dims=64, name='conv2_1')
+                                        out_dims=64, name='conv2_seg')
             conv_1 = self._conv_stage(input_tensor=conv_1, k_size=1,
-                                        out_dims=32, name='conv3_1')
+                                        out_dims=32, name='conv3_seg')
             conv_1 = self._conv_stage(input_tensor=conv_1, k_size=3,
-                                        out_dims=32, name='conv4_1')
-            conv_output_1 = self.conv2d(inputdata=conv_1, out_channel=5,
-                                        kernel_size=1, use_bias=True, name='conv_5_1')
+                                        out_dims=32, name='conv4_seg')
+            conv_output_1 = self.conv2d(inputdata=conv_1, out_channel=4,
+                                        kernel_size=1, use_bias=True, name='conv_5_seg')
 
             ret['prob_output'] = tf.image.resize_images(conv_output_1, [IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH])
             ### add lane existence prediction branch ###
 
-            # spatial softmax #
-            features = conv_output_1  # N x H x W x C
-            softmax = tf.nn.softmax(features)
+            # # spatial softmax #
+            # features = conv_output_1  # N x H x W x C
+            # softmax = tf.nn.softmax(features)
 
-            avg_pool = self.avgpooling(softmax, kernel_size=2, stride=2)
-            _, H, W, C = avg_pool.get_shape().as_list()
-            reshape_output = tf.reshape(avg_pool, [-1, H * W * C])
-            fc_output = self.fullyconnect(reshape_output, 128)
-            relu_output = self.relu(inputdata=fc_output, name='relu6')
-            fc_output = self.fullyconnect(relu_output, 4)
-            existence_output = fc_output
+            # avg_pool = self.avgpooling(softmax, kernel_size=2, stride=2)
+            # _, H, W, C = avg_pool.get_shape().as_list()
+            # reshape_output = tf.reshape(avg_pool, [-1, H * W * C])
+            # fc_output = self.fullyconnect(reshape_output, 128)
+            # relu_output = self.relu(inputdata=fc_output, name='relu6')
+            # fc_output = self.fullyconnect(relu_output, 4)
+            # existence_output = fc_output
 
-            ret['existence_output'] = existence_output
+            # ret['existence_output'] = existence_output
             # lane area segmentation
             conv_2 = self._conv_stage(input_tensor=conv, k_size=3,
                                         out_dims=64, name='conv2_2')

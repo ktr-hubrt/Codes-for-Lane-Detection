@@ -241,14 +241,14 @@ def _seg_loss_hard_lane(prediction, images, gt, name, aux_loss_type=1):
                 shape=[feature_size[0],
                        feature_size[1], 
                        feature_size[2]])
-      gt_reshape = tf.one_hot(gt_reshape, depth=5)
-      class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0, 1.0]])
+      gt_reshape = tf.one_hot(gt_reshape, depth=4)
+      class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0]])
       weights_loss = tf.reduce_sum(tf.multiply(gt_reshape, class_weights), 3)
       # raw_loss = tf.losses.softmax_cross_entropy(onehot_labels=gt_reshape,
                                                  # logits=prediction_reshape,
                                                  # weights=weights_loss)
       gt = tf.reshape(gt, [-1])
-      prediction = tf.reshape(prediction, [-1, 5])
+      prediction = tf.reshape(prediction, [-1, 4])
       raw_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction, labels=gt)
       raw_loss = tf.reshape(raw_loss,feature_size[0:3])
       raw_loss = tf.multiply(raw_loss,weights_loss)
@@ -365,8 +365,8 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             binary_seg_ret = processed_prob
 
             # Predict lane existence:
-            existence_logit = inference_ret['existence_output']
-            existence_output = tf.nn.sigmoid(existence_logit)
+            # existence_logit = inference_ret['existence_output']
+            # existence_output = tf.nn.sigmoid(existence_logit)
 
             lane_seg = inference_ret['lane_seg']
             feature_for_seg = tf.squeeze(tf.nn.sigmoid(lane_seg),3)
@@ -398,16 +398,16 @@ class LaneNet(cnn_basenet.CNNBaseModel):
 
             decode_logits = inference_ret['prob_output']
 
-            binary_segmentation_loss = _seg_loss_hard(decode_logits, images, binary_label, 'line', aux_loss_type=0)
+            binary_segmentation_loss = _seg_loss_hard_lane(decode_logits, images, binary_label, 'lane', aux_loss_type=0)
 
             # # Compute the HSP loss of line
             # hard_line_loss = _seg_loss_hard(decode_logits, images, binary_label, 'hard_line')
 
             # # Compute the sigmoid loss
 
-            existence_logits = inference_ret['existence_output']
-            existence_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=existence_label, logits=existence_logits)
-            existence_loss = tf.reduce_mean(existence_loss)
+            # existence_logits = inference_ret['existence_output']
+            # existence_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=existence_label, logits=existence_logits)
+            # existence_loss = tf.reduce_mean(existence_loss)
 
             # Compute the lane segmentation loss
             lane_logits = inference_ret['lane_seg']
@@ -424,25 +424,21 @@ class LaneNet(cnn_basenet.CNNBaseModel):
         # Compute the overall loss
 
         # total_loss = binary_segmentation_loss + 0.1*existence_loss + 0.5*hard_line_loss
-        total_loss = lane_segmentation_loss + 10*lane_regress_loss + 0.5*binary_segmentation_loss
+        total_loss = lane_segmentation_loss + 10*lane_regress_loss + binary_segmentation_loss
         # total_loss = 100*lane_regress_loss 
         ret = {
             'total_loss': total_loss,
             'instance_seg_logits': decode_logits,
             'instance_seg_loss': binary_segmentation_loss,
-            'existence_logits': existence_logits,
-            'existence_pre_loss': existence_loss,
             'lane_seg_loss': lane_segmentation_loss,
             'lane_reg_loss': lane_regress_loss,
         }
         # import pdb;pdb.set_trace()
-        padd = tf.zeros([CFG.TRAIN.BATCH_SIZE,CFG.TRAIN.IMG_HEIGHT//3, CFG.TRAIN.IMG_WIDTH,5])
+        padd = tf.zeros([CFG.TRAIN.BATCH_SIZE,CFG.TRAIN.IMG_HEIGHT//3, CFG.TRAIN.IMG_WIDTH,4])
         decode_logits = tf.concat([padd,decode_logits],1)
         tf.add_to_collection('total_loss', total_loss)
         tf.add_to_collection('instance_seg_logits', decode_logits)
         tf.add_to_collection('instance_seg_loss', binary_segmentation_loss)
-        tf.add_to_collection('existence_logits', existence_logits)
-        tf.add_to_collection('existence_pre_loss',existence_loss)
         tf.add_to_collection('lane_seg_loss',lane_segmentation_loss)
         tf.add_to_collection('lane_reg_loss',lane_regress_loss)
         # tf.add_to_collection('lane_hard_loss',hard_line_loss)

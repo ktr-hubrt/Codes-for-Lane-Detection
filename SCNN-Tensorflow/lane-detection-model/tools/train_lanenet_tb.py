@@ -100,7 +100,6 @@ def forward(batch_queue, net, phase, scope, optimizer=None):
     _ = net.loss(inference, label_instance_batch, label_existence_batch, lane_binary_batch, lane_lmap_batch, lane_rmap_batch, img_batch, 'lanenet_loss')
     total_loss = tf.add_n(tf.get_collection('total_loss', scope))
     instance_loss = tf.add_n(tf.get_collection('instance_seg_loss', scope))
-    existence_loss = tf.add_n(tf.get_collection('existence_pre_loss', scope))
     gaush_loss = tf.add_n(tf.get_collection('lane_seg_loss', scope))
     regress_loss = tf.add_n(tf.get_collection('lane_reg_loss', scope))
     # instance_loss = '0'
@@ -179,7 +178,7 @@ def forward(batch_queue, net, phase, scope, optimizer=None):
         grads = optimizer.compute_gradients(total_loss)
     else:
         grads = None
-    return total_loss, instance_loss, existence_loss, gaush_loss, regress_loss, line_hard_loss, accuracy, accuracy_back, IoU, out_logits_out, grads
+    return total_loss, instance_loss, gaush_loss, regress_loss, line_hard_loss, accuracy, accuracy_back, IoU, out_logits_out, grads
 
 def get_variables_in_checkpoint_file(file_name):
     try:
@@ -218,7 +217,7 @@ def load_model(sess, model_path):
         'Variable',
         #'_lossWt',
         # 'conv_6',
-        # 'reg',
+        # 'seg',
         #'pix',
         ]
     variables_to_restore = []
@@ -290,7 +289,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
         for i in range(CFG.TRAIN.GPU_NUM):
             with tf.device('/gpu:%d' % i):
                 with tf.name_scope('tower_%d' % i) as scope:
-                    total_loss, instance_loss, existence_loss, gaush_loss, regress_loss, line_hard_loss, accuracy, accuracy_back, _, out_logits_out, \
+                    total_loss, instance_loss, gaush_loss, regress_loss, line_hard_loss, accuracy, accuracy_back, _, out_logits_out, \
                         grad = forward(batch_queue, net, phase, scope, optimizer)
                     tower_grads.append(grad)
                     summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
@@ -370,7 +369,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
         for epoch in range(CFG.TRAIN.EPOCHS):
             t_start = time.time()
             _, c, train_accuracy, train_accuracy_back, train_instance_loss, train_existence_loss, train_summary, _ = \
-                sess.run([train_op, total_loss, accuracy, accuracy_back, instance_loss, existence_loss, summary_op, out_logits_out],
+                sess.run([train_op, total_loss, accuracy, accuracy_back, instance_loss, gaush_loss, summary_op, out_logits_out],
                          feed_dict={phase: 'train'})
 
             cost_time = time.time() - t_start
@@ -382,7 +381,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
 
             if epoch % CFG.TRAIN.DISPLAY_STEP == 0 or epoch<250:
                 print(
-                    'Epoch: {:d} loss_ins= {:6f} ({:6f}) loss_ext= {:6f} ({:6f}) accuracy= {:6f} ({:6f}) '
+                    'Epoch: {:d} loss_ins= {:6f} ({:6f}) loss_gaush= {:6f} ({:6f}) accuracy= {:6f} ({:6f}) '
                     'accuracy_back= {:6f} ({:6f}) mean_time= {:5f}s '.format(epoch + 1, train_instance_loss,
                                                                              np.mean(train_instance_loss_mean),
                                                                              train_existence_loss,
@@ -392,7 +391,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
                                                                              train_accuracy_back,
                                                                              np.mean(train_accuracy_back_mean),
                                                                              np.mean(train_cost_time_mean)))
-            if epoch % 1 == 0:
+            if epoch % 100 == 0:
                 summary_writer.add_summary(summary=train_summary, global_step=epoch)
 
             if epoch % 500 == 0:
