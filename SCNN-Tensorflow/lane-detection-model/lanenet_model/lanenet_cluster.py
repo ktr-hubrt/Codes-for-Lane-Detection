@@ -853,7 +853,7 @@ class LaneNetCluster(object):
             ind = binary_score_images[:,:,1]>0.8
             binary_seg_ret *= ind
 
-        Use_gt = 3 
+        Use_gt = 2 
         mask_mp = np.zeros(shape=[binary_seg_ret.shape[0], binary_seg_ret.shape[1]], dtype=np.uint8)
         label_ind = []
         label_x = []

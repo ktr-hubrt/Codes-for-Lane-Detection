@@ -33,7 +33,7 @@ from lanenet_model import lanenet_merge_model
 from lanenet_model import lanenet_cluster
 # from lanenet_model import lanenet_postprocess
 from config import global_config
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '5'
 
 CFG = global_config.cfg
 VGG_MEAN = [103.939, 116.779, 123.68]
@@ -178,6 +178,7 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
             # import pdb;pdb.set_trace()
             seg_gt_path = ['data/result_test/' +tmp.strip().replace('.jpg','_sur.png') for tmp in image_path_epoch]
             seg_gt_list = [cv2.imread(tmp,0) for tmp in seg_gt_path]
+            import pdb;pdb.set_trace()
             # lane_gt_path = ['data/result_test/' +tmp.strip().replace('.jpg','_lane.png') for tmp in image_path_epoch]
             # lane_gt_list = [cv2.imread(tmp,0) for tmp in lane_gt_path]
             use_gt = 0
