@@ -804,7 +804,7 @@ class LaneNetCluster(object):
         #    import pdb;pdb.set_trace()
         return draw_img, mask_image, single_class_iou, params, points_all
 
-    def get_lane_mask_centre(self, binary_seg_ret, gt_seg_ret, raw_image, reg_image):
+    def get_lane_mask_centre(self, binary_seg_ret, instance_seg_ret, gt_seg_ret, raw_image, reg_image):
         """
 
         :param binary_seg_ret:
@@ -954,10 +954,10 @@ class LaneNetCluster(object):
         # cv2.imwrite('png/3.jpg',mask_image)
         # cv2.imwrite('png/4.png',mask_mp*55)
         # cv2.imwrite('png/2.png',reg_image[:,:,1])
-        # cv2.imwrite('png/1.png',binary_seg_ret*255)
+        cv2.imwrite('png/binary.png',binary_seg_ret*255)
         # cv2.imwrite('png/3.png',reg_image[:,:,0]*binary_seg_ret[96:]*800)
-        # cv2.imwrite('png/0.png',instance_seg_ret*55)
-        # import pdb;pdb.set_trace()
+        cv2.imwrite('png/instance.png',instance_seg_ret*55)
+        import pdb;pdb.set_trace()
         # reg_image = reg_image*55
 
         points_all=[]
@@ -971,6 +971,306 @@ class LaneNetCluster(object):
         for k in range(len(label_ind)):
                 flag_pass = [5]
                 mm = mask_mp==label_ind[label_x_[k]]
+                binary_seg_ret_ = mm#*binary_seg_ret
+                #import pdb;pdb.set_trace()
+                pass_flag = False
+                if np.sum(binary_seg_ret_)<10:
+                    pass_flag = True
+                # import pdb;pdb.set_trace()
+                #binary_seg_ret_ = binary_seg_ret_[size_y][:,wide]
+                reg_image_l = reg_image[:,:,0]*binary_seg_ret_[96:,:]
+                reg_image_r = reg_image[:,:,1]*binary_seg_ret_[96:,:]
+                x_lst_r = []
+                x_lst = []
+                x_lst_l = [] 
+                y_lst_l = [] 
+                y_lst_r = [] 
+                min_x = 288
+                max_x = 0
+                for i in range(size[0]):
+                    if i<96:
+                        continue    
+                    mm = (reg_image_r[i-96,:]>0)*(reg_image_l[i-96,:]>0)
+                    if np.sum(mm)<=0:
+                        continue
+                    min_x = min(i,min_x)
+                    max_x = max(i,max_x)
+                    if np.sum(binary_seg_ret_[i])<np.mean(flag_pass[-3:]):
+                        continue
+                    
+                    point_x_l = (wide - reg_image_l[i-96,:]*800)*mm
+                    point_x_r = (wide + reg_image_r[i-96,:]*800)*mm
+                    mask = np.where(point_x_l>0)                
+                    point_x_l = point_x_l[mask]
+                    # mask = np.where(point_x_r>0)
+                    point_x_r = point_x_r[mask]
+                    if k==10 and i>220:
+                        import pdb;pdb.set_trace()
+                    
+                    mu, std = norm.fit(point_x_l)
+                    tmp = []
+                    ind_l = []
+                    for value in point_x_l:
+                        if value>=(mu-std) and value<=(mu+std) and binary_seg_ret[i,int(max(min(value,size[1]-1),0))]==0:
+                            tmp.append(max(min(value,size[1]-1),0))
+                            ind_l.append(i)
+                    point_x_l = tmp
+                    mu, std = norm.fit(point_x_r)
+                    tmp = []
+                    ind_r = []
+                    for value in point_x_r:
+                        if value>=(mu-std) and value<=(mu+std) and binary_seg_ret[i,int(min(value,size[1]-1))]==0:
+                            tmp.append(min(value,size[1]-1))
+                            ind_r.append(i)
+                    point_x_r = tmp
+                    if k==10 and i>220:
+                        import pdb;pdb.set_trace()
+
+                    point = [(i,value) for value in point_x_l]
+                    # import pdb;pdb.set_trace()
+                    x_lst.extend(ind_l)
+                    x_lst_r.extend(ind_r)
+                    # import pdb;pdb.set_trace()
+                    y_lst_l.extend(point_x_l)
+                    y_lst_r.extend(point_x_r)
+                    # x_lst.append(i)
+                    # y_lst_l.append(np.mean(point_x_l))
+                    # y_lst_r.append(np.mean(point_x_r))
+                    # if len(point_x_l)!=len(point_x_r):
+                    #import pdb;pdb.set_trace()
+                    # if point_x_l.any
+                    # points.append(point)
+                    point = [(i,value) for value in point_x_r]
+                    # points.append(point)
+                    mask_img[i][[int(jb) for jb in point_x_l]] = (int(self._color_map[2][0]),
+                                              int(self._color_map[2][1]),
+                                              int(self._color_map[2][2]))
+                    mask_img[i][[int(jb) for jb in point_x_r]] = (int(self._color_map[1][0]),
+                                              int(self._color_map[1][1]),
+                                              int(self._color_map[1][2]))
+                    flag_pass.append(np.sum(binary_seg_ret_[i]))
+                    # if len(flag_pass)>28:
+                    #     if np.max(flag_pass)<15:
+                    #         pass_flag = True
+                    #         # import pdb;pdb.set_trace()
+                    #         break
+                    #     del flag_pass[0]
+                    # mask_png[i][point_x_r] = 100
+                    # mask_png[i][point_x_l] = 1
+                # skeleton = morphology.skeletonize(mask_png)
+                # skeleton = skeleton.astype(np.uint8)
+                # skel_inds = np.where(skeleton > 0)
+                # mask_png[...] = 0
+                # mask_png[skel_inds] = 100
+
+                if pass_flag:
+                    x_lst_l = x_lst_pre
+                    y_lst_l = y_lst_r_pre
+                    y_lst_r_pre = []
+                    x_lst_pre = []
+                else:
+                    x_lst_l = x_lst_pre + x_lst
+                    y_lst_l = y_lst_r_pre + y_lst_l
+                    y_lst_r_pre = y_lst_r
+                    x_lst_pre = x_lst_r
+                if len(set(x_lst_l))<3:
+                    # import pdb;pdb.set_trace()
+                    continue
+                if len(x_lst_l)!=len(y_lst_l):
+                    import pdb;pdb.set_trace()
+                parameter_l = self.curve_fit(np.array(x_lst_l), np.array(y_lst_l), self.f_2)
+                draw_img, points = self.draw_curve(mask_img, parameter_l, min(np.min(x_lst_l),min_x),max(np.max(x_lst_l),max_x))
+                if len(points)<4:
+                    # import pdb;pdb.set_trace()
+                    continue
+
+                points_all.append(points)
+                params_l.append(parameter_l)
+                if k ==(len(label_ind)-1) and pass_flag != True and len(set(x_lst_r))>2:
+                # try:
+                    parameter_r = self.curve_fit(np.array(x_lst_r), np.array(y_lst_r), self.f_2)
+                    draw_img, points = self.draw_curve(mask_img, parameter_r, min_x, max_x)
+                # else:
+                    points_all.append(points)
+                    params_r.append(parameter_r)
+        # cv2.imwrite('1.jpg',draw_img)
+        # import pdb;pdb.set_trace()
+
+        params = params_l + params_r
+        #print(len(params))
+        #if len(params)<=len(cluster_index) or len(params)<2:
+        # if len(params)<2:
+        #    import pdb;pdb.set_trace()
+        return draw_img, mask_image, single_class_iou, params, points_all
+
+    def get_lane(self, binary_seg_ret, instance_seg_ret, gt_seg_ret, raw_image, reg_image):
+        """
+
+        :param binary_seg_ret:
+        :param instance_seg_ret:
+        :return:
+        mask_img: points and fitted curve
+        mask_image: lane centre
+        """
+        size=[288,800]
+
+        
+        # import pdb;pdb.set_trace()  
+           
+        mask_img = np.zeros(shape=[binary_seg_ret.shape[0], binary_seg_ret.shape[1],3], dtype=np.uint8)
+        mask_png = np.zeros(shape=[binary_seg_ret.shape[0], binary_seg_ret.shape[1]], dtype=np.uint8)
+        # if np.sum(binary_seg_ret) <10:
+        #     return mask_img,None,None
+        # gt_seg_ret = cv2.resize(gt_seg_ret.astype(np.uint8), (size[1],size[0]), interpolation=cv2.INTER_NEAREST)
+
+        # # compute iou
+        #iou_mask_image = binary_seg_ret.reshape((-1))
+        #iou_mask_image = (iou_mask_image>0)*1.0
+        #index = np.where(gt_seg_ret>0)
+        #_gt_seg_ret = gt_seg_ret.copy()
+        #_gt_seg_ret[index] = 1
+        #_gt_seg_ret = _gt_seg_ret.reshape((-1))
+        #cm = confusion_matrix(_gt_seg_ret, iou_mask_image)
+        #sz = cm.shape[0]
+        #single_class_iou = []
+        single_class_iou = [0,0]
+        #for i in range(sz):
+        #    tmp_iou = 1.0*cm[i,i]/(np.sum(cm[i,:])+np.sum(cm[:,i])-cm[i,i])
+        #    single_class_iou.append(tmp_iou)
+            #print('seg_class {:d} iou {:.3f}'.format(i,tmp_iou))
+        #import pdb;pdb.set_trace()
+
+        mask_image = mask_img.copy()
+        mid = mask_img.copy()
+        # postprocessor = lanenet_postprocess.LaneNetPoseProcessor()
+        # binary_seg_ret = postprocessor.postprocess(binary_seg_ret)
+        # if 1:
+        #     mm = gt_seg_ret==1
+        #     binary_seg_ret *= mm
+        if 0:
+            # ind = gt_seg_ret==1
+            ind = binary_score_images[:,:,1]>0.8
+            binary_seg_ret *= ind
+
+        Use_gt = 3 
+        mask_mp = np.zeros(shape=[binary_seg_ret.shape[0], binary_seg_ret.shape[1]], dtype=np.uint8)
+        label_ind = []
+        label_x = []
+        size_y = range(288)
+        wide = range(size[1])
+        if Use_gt==0:
+            binary_seg_ret = (binary_seg_ret>0)*1.0
+            cluster_index = np.unique(gt_seg_ret)
+            cluster_index = [tmp for tmp in cluster_index if tmp != 0]
+            gt_seg_ret = gt_seg_ret#*binary_seg_ret
+            for index, i in enumerate(cluster_index):
+                label_ind.append(i+1)
+                idx = np.where(gt_seg_ret == i)
+                coord = idx
+                # import pdb;pdb.set_trace()
+                # coord = self._thresh_coord(coord)
+                label_x.append(np.mean(coord[1]))
+                mask_mp[coord] = i+1
+                color = (int(self._color_map[(index+2)%6][0]),
+                         int(self._color_map[(index+2)%6][1]),
+                         int(self._color_map[(index+2)%6][2]))
+                mask_image[coord]=color
+        elif Use_gt ==1:
+            lane_embedding_feats, lane_coordinate = self._get_lane_area(binary_seg_ret, binary_score_images)
+
+            num_clusters, labels, cluster_centers = self._cluster(lane_embedding_feats, bandwidth=1.5)
+
+            # 聚类簇超过八个则选择其中类内样本最多的八个聚类簇保留下来
+            if num_clusters > 3:
+                cluster_sample_nums = []
+                for i in range(num_clusters):
+                    cluster_sample_nums.append(len(np.where(labels == i)[0]))
+                sort_idx = np.argsort(-np.array(cluster_sample_nums, np.int64))
+                cluster_index = np.array(range(num_clusters))[sort_idx[0:3]]
+            else:
+                cluster_index = range(num_clusters)
+
+            for index, i in enumerate(cluster_index):
+                label_ind.append(i+1)
+                idx = np.where(labels == i)
+                coord = lane_coordinate[idx]
+                # coord = self._thresh_coord(coord)
+                label_x.append(np.mean(coord[:, 1]))
+                coord_ = (coord[:, 0], coord[:, 1])
+                mask_mp[coord_] = i+1
+                coord = np.flip(coord, axis=1)
+                color = (int(self._color_map[(index+2)%6][0]),
+                         int(self._color_map[(index+2)%6][1]),
+                         int(self._color_map[(index+2)%6][2]))
+                coord = np.array([coord])
+                cv2.polylines(img=mask_image, pts=coord, isClosed=False, color=color, thickness=2)
+        elif Use_gt ==2:
+            binary_seg_ret = binary_seg_ret>0.2
+            instance_seg_ret = binary_seg_ret*gt_seg_ret
+            num_cluster = np.max(instance_seg_ret)
+
+            assert num_cluster<=3
+
+            cluster_index = np.unique(instance_seg_ret)
+            cluster_index = [tmp for tmp in cluster_index if tmp != 0]
+            for index, i in enumerate(cluster_index):
+                label_ind.append(i+1)
+                idx = np.where(instance_seg_ret == i)
+                coord = idx
+                # import pdb;pdb.set_trace()
+                # coord = self._thresh_coord(coord)
+                label_x.append(np.mean(coord[1]))
+                mask_mp[coord] = i+1
+                color = (int(self._color_map[(index+2)%6][0]),
+                         int(self._color_map[(index+2)%6][1]),
+                         int(self._color_map[(index+2)%6][2]))
+                mask_image[coord]=color
+        else:
+            binary_seg_ret = binary_seg_ret>0.8
+            instance_seg_ret = binary_seg_ret*instance_seg_ret
+            num_cluster = np.max(instance_seg_ret)
+
+            assert num_cluster<=3
+            tram = [2,1,3]
+            cluster_index = np.unique(instance_seg_ret)
+            cluster_index = [tmp for tmp in cluster_index if tmp != 0]
+            for index, i in enumerate(cluster_index):
+                
+                idx = np.where(instance_seg_ret == i)
+                coord = idx
+                if idx[0][-1]-idx[0][0]<20:
+                    continue
+                # import pdb;pdb.set_trace()
+                # coord = self._thresh_coord(coord)
+                # label_x.append(np.mean(coord[1]))
+                label_ind.append(tram[int(i)-1])
+                mask_mp[coord] = tram[int(i)-1]
+                color = (int(self._color_map[(index+2)%6][0]),
+                         int(self._color_map[(index+2)%6][1]),
+                         int(self._color_map[(index+2)%6][2]))
+                mask_image[coord]=color
+
+        # cv2.imwrite('png/3.jpg',mask_image)
+        # cv2.imwrite('png/4.png',mask_mp*55)
+        # cv2.imwrite('png/2.png',reg_image[:,:,1])
+        # cv2.imwrite('png/binary.png',binary_seg_ret*255)
+        # cv2.imwrite('png/3.png',reg_image[:,:,0]*binary_seg_ret[96:]*800)
+        # cv2.imwrite('png/instance.png',instance_seg_ret*55)
+        label_ind.sort()
+        # import pdb;pdb.set_trace()
+
+        points_all=[]
+        params_l = []
+        params_r = []
+        draw_img = mask_img.copy()
+
+        y_lst_r_pre = []
+        x_lst_pre =[]
+        # label_x_ = np.argsort(label_x)
+
+        for k in range(len(label_ind)):
+                flag_pass = [5]
+                mm = mask_mp==label_ind[k]
                 binary_seg_ret_ = mm#*binary_seg_ret
                 #import pdb;pdb.set_trace()
                 pass_flag = False

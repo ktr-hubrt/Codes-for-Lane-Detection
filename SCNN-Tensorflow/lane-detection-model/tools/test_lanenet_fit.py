@@ -33,7 +33,7 @@ from lanenet_model import lanenet_merge_model
 from lanenet_model import lanenet_cluster
 # from lanenet_model import lanenet_postprocess
 from config import global_config
-os.environ["CUDA_VISIBLE_DEVICES"] = '6'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
 CFG = global_config.cfg
 VGG_MEAN = [103.939, 116.779, 123.68]
@@ -131,9 +131,9 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
     feature_for_seg = tf.squeeze(tf.nn.sigmoid(pred_ret['lane_seg']),3)
     feature_for_reg = pred_ret['lane_reg']
     # import pdb;pdb.set_trace()
-    prediction = feature_for_reg
+    feature_for_lane = tf.argmax(pred_ret['prob_output'],3)
     # left_prediction = prediction[:,:,:,0]*feature_for_seg+0.001
-    left_prediction = prediction[:,:,:,0]*feature_for_seg+0.001
+    # left_prediction = prediction[:,:,:,0]*feature_for_seg+0.001
     # feature_for_line = pred_ret['prob_output']
     # feature_for_line = tf.argmax(feature_for_line, axis=-1)
     #feature_for_score = tf.nn.softmax(pred_ret['lane_instance_predictions'])
@@ -195,8 +195,8 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
 
             t_start = time.time()
             if 1:
-                binary_seg_images, dis_maps, l_dis = sess.run(
-                    [feature_for_seg, feature_for_reg, left_prediction], feed_dict={input_tensor: image_list_epoch})
+                binary_seg_images, dis_maps, instance_seg_images = sess.run(
+                    [feature_for_seg, feature_for_reg, feature_for_lane], feed_dict={input_tensor: image_list_epoch})
             if use_gt ==1:
                 # import pdb;pdb.set_trace()
                 l_map = np.reshape(reg_l_list[0], [192,800,1])/250.0
@@ -217,12 +217,12 @@ def test_lanenet_batch(image_dir, weights_path, batch_size, use_gpu, save_dir=No
                 mask_png[96:,:] = binary_seg_image
                 #mask_png_1 = np.zeros(shape=[288, 800], dtype=np.float32)
                 #mask_png_1[96:,:] = binary_score_images[index]
-                #mask_png_2 = np.zeros(shape=[288, 800], dtype=np.float32)
-                #mask_png_2[96:,:] = instance_seg_images[index]
+                mask_png_2 = np.zeros(shape=[288, 800], dtype=np.float32)
+                mask_png_2[96:,:] = instance_seg_images[index]
                 # import pdb;pdb.set_trace()
-                mask_image, iou_mask_image, single_class_iou, curve_parameter, points_all = cluster.get_lane_mask_centre(
+                mask_image, iou_mask_image, single_class_iou, curve_parameter, points_all = cluster.get_lane(
                                                    binary_seg_ret=mask_png,
-                                                   #instance_seg_ret=mask_png_2,
+                                                   instance_seg_ret=mask_png_2,
                                                    #binary_score_images=mask_png_1,
                                                    gt_seg_ret=seg_gt_list[index],
                                                    raw_image=image_vis_list[index],
