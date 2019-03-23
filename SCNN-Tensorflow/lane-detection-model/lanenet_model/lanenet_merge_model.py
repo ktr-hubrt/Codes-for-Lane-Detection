@@ -310,6 +310,98 @@ def _seg_loss_hard_lane(prediction, images, gt, name, aux_loss_type=1):
       raw_loss = tf.reduce_mean(raw_loss)
       return raw_loss + raw_loss_hard
 
+def _hard_attention_map(prediction, images, gt, name):
+    with tf.variable_scope(name + '/seg_loss'):
+      feature_size = prediction.get_shape().as_list()
+      gt = tf.expand_dims(gt,3)
+      gt = tf.cast(gt, tf.int32)
+      gt = _slice_feature(gt)
+
+      # seg_out = tf.expand_dims(tf.argmax(prediction, axis=3),axis=3)
+      # tf.summary.image(name+'/lab_gt', tf.concat(axis=2,
+      #     values=[ tf.cast(gt, tf.uint8)*(255//4), tf.cast(seg_out, tf.uint8)*(255//4)]
+      #     ), 1)
+
+      # prediction_reshape = tf.reshape(
+      #           prediction,
+      #           shape=[feature_size[0],
+      #                  feature_size[1] * feature_size[2],
+      #                  feature_size[3]])
+      # import pdb; pdb.set_trace()
+      # gt_reshape = tf.reshape(
+      #           gt,
+      #           shape=[feature_size[0],
+      #                  feature_size[1], 
+      #                  feature_size[2]])
+      # gt_reshape = tf.one_hot(gt_reshape, depth=4)
+      # class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0]])
+      # weights_loss = tf.reduce_sum(tf.multiply(gt_reshape, class_weights), 3)
+      # raw_loss = tf.losses.softmax_cross_entropy(onehot_labels=gt_reshape,
+                                                 # logits=prediction_reshape,
+                                                 # weights=weights_loss)
+      gt = tf.reshape(gt, [-1])
+      # prediction = tf.reshape(prediction, [-1, 4])
+      # raw_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction, labels=gt)
+      # raw_loss = tf.reshape(raw_loss,feature_size[0:3])
+      # raw_loss = tf.multiply(raw_loss,weights_loss)
+      if aux_loss_type==1:
+        region_size=10
+        half_region_size = region_size//2
+        #images = [tf.image.resize_nearest_neighbor(tf.expand_dims(x,0), size) for x in images]
+        images = tf.cast(images, tf.float32)
+        #images = tf.squeeze(images, axis=[1])
+        images = _slice_feature(images)
+        B_img = images[:,:,:,0]
+        G_img = images[:,:,:,1]
+        R_img = images[:,:,:,2]
+        gray_img = tf.multiply(tf.cast(R_img,tf.float32), 0.299) + tf.multiply(tf.cast(G_img,tf.float32), 0.587) +  tf.multiply(tf.cast(B_img,tf.float32), 0.114)
+        gt = tf.reshape(gt,feature_size[0:3])
+        loss_add = []
+        # import pdb; pdb.set_trace()
+        for y in range(feature_size[1]):
+          min_y = y-half_region_size if y>half_region_size else 0
+          max_y = y+half_region_size if y+half_region_size<feature_size[1] else feature_size[1]
+          label_region = gt[:, min_y:max_y,:]
+          label_centre = gt[:, y, :]
+          label_centre = tf.expand_dims(label_centre, 1)
+          label_centre = tf.tile(label_centre, [1,max_y-min_y,1])
+          lab_indices = tf.cast(tf.equal(label_region, label_centre), tf.float32)
+          gray_img_y = tf.expand_dims(gray_img[:, y, :], 1)
+          gray_img_y = tf.tile(gray_img_y, [1,max_y-min_y,1])
+          grey_diff = gray_img_y - gray_img[:, min_y:max_y,:] + 0.001
+          loss_weight_mat = tf.add(tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff)))),tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff))))
+          loss_weight = tf.reduce_sum(loss_weight_mat) + 0.001
+          loss_weight_mat /= loss_weight
+          loss_add_value = tf.reduce_sum(raw_loss[:,min_y:max_y,:]*loss_weight_mat)
+          loss_add.append(loss_add_value)
+
+        # import pdb; pdb.set_trace()
+        for x in range(feature_size[2]):
+          min_x = x-half_region_size if x>half_region_size else 0
+          max_x = x+half_region_size if x+half_region_size<feature_size[2] else feature_size[2]
+          label_region = gt[:, :, min_x:max_x]
+          label_centre = gt[:, :, x]
+          label_centre = tf.expand_dims(label_centre, 2)
+          label_centre = tf.tile(label_centre, [1,1,max_x-min_x])
+          lab_indices = tf.cast(tf.equal(label_region, label_centre), tf.float32)
+          gray_img_x = tf.expand_dims(gray_img[:, :, x], 2)
+          gray_img_x = tf.tile(gray_img_x, [1,1,max_x-min_x])
+          grey_diff = gray_img_x - gray_img[:, :, min_x:max_x] + 0.001
+          loss_weight_mat = tf.add(tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff)))),tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff))))
+          loss_weight = tf.reduce_sum(loss_weight_mat) + 0.001
+          loss_weight_mat /= loss_weight
+          loss_add_value = tf.reduce_sum(raw_loss[:,:,min_x:max_x]*loss_weight_mat)
+          loss_add.append(loss_add_value)
+        # import pdb; pdb.set_trace()
+        raw_loss_hard = tf.stack(loss_add)
+        # raw_loss_hard = tf.Print(raw_loss_hard ,[raw_loss_hard.shape],message='tips:',summarize=100)
+        raw_loss_hard = tf.reduce_mean(raw_loss_hard) 
+        
+      else:
+        raw_loss_hard = 0
+      raw_loss = tf.reduce_mean(raw_loss)
+      return raw_loss + raw_loss_hard
+
 class LaneNet(cnn_basenet.CNNBaseModel):
     """
     Lane detection model
