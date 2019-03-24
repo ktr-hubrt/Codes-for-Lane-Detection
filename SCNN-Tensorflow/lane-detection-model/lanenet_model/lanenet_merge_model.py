@@ -359,7 +359,7 @@ def _hard_attention_map(prediction, attention_map, images, gt, name):
           gray_img_y = tf.expand_dims(gray_img[:, y, :], 1)
           gray_img_y = tf.tile(gray_img_y, [1,max_y-min_y,1])
           grey_diff = gray_img_y - gray_img[:, min_y:max_y,:] + 0.001
-          loss_weight_mat =tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff))))#+tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))
+          loss_weight_mat =tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))#tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff))))#+tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))
           loss_weight = tf.reduce_mean(loss_weight_mat) + 0.001
           loss_weight_mat /= loss_weight
           # loss_add_value = tf.reduce_sum(raw_loss[:,min_y:max_y,:]*loss_weight_mat,axis=1)
@@ -380,7 +380,7 @@ def _hard_attention_map(prediction, attention_map, images, gt, name):
           gray_img_x = tf.expand_dims(gray_img[:, :, x], 2)
           gray_img_x = tf.tile(gray_img_x, [1,1,max_x-min_x])
           grey_diff = gray_img_x - gray_img[:, :, min_x:max_x] + 0.001
-          loss_weight_mat = tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff))))#+tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))
+          loss_weight_mat = tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))#tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff))))#+tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))
           loss_weight = tf.reduce_mean(loss_weight_mat) + 0.001
           loss_weight_mat /= loss_weight
           # loss_add_value = tf.reduce_sum(raw_loss[:,:,min_x:max_x]*loss_weight_mat, axis=2)
