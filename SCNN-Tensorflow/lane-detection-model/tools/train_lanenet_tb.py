@@ -391,7 +391,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
                                                                              train_accuracy_back,
                                                                              np.mean(train_accuracy_back_mean),
                                                                              np.mean(train_cost_time_mean)))
-            if epoch % 100 == 0:
+            if epoch % 1 == 0:
                 summary_writer.add_summary(summary=train_summary, global_step=epoch)
 
             if epoch % 500 == 0:

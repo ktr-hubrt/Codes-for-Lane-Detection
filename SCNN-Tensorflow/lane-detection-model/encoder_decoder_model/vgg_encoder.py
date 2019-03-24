@@ -602,7 +602,17 @@ class VGG16Encoder(cnn_basenet.CNNBaseModel):
 
             ret['lane_reg'] = tf.nn.sigmoid(tf.image.resize_images(conv_output_3, [IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH]))
 
-            # ret['combine'] = tf.concat([ret['lane_seg'],ret['lane_reg']],axis=3)
+            # lane area attention
+            conv_4 = self._conv_stage(input_tensor=conv, k_size=3,
+                                        out_dims=64, name='conv2_4')
+            conv_4 = self._conv_stage(input_tensor=conv_4, k_size=1,
+                                        out_dims=32, name='conv3_4')
+            conv_4 = self._conv_stage(input_tensor=conv_4, k_size=3,
+                                        out_dims=32, name='conv4_4')
+            conv_output_4 = self.conv2d(inputdata=conv_4, out_channel=2,
+                                        kernel_size=1, use_bias=True, name='conv_5_4')
+
+            ret['lane_HSP'] = tf.nn.sigmoid(tf.image.resize_images(conv_output_4, [IMG_HEIGHT, CFG.TRAIN.IMG_WIDTH]))
 
         return ret
 

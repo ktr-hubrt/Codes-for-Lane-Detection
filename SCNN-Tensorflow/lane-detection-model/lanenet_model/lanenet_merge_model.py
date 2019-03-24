@@ -310,41 +310,31 @@ def _seg_loss_hard_lane(prediction, images, gt, name, aux_loss_type=1):
       raw_loss = tf.reduce_mean(raw_loss)
       return raw_loss + raw_loss_hard
 
-def _hard_attention_map(prediction, images, gt, name):
-    with tf.variable_scope(name + '/seg_loss'):
+def _hard_attention_map(prediction, attention_map, images, gt, name):
+    with tf.variable_scope(name + '/attention_loss'):
       feature_size = prediction.get_shape().as_list()
       gt = tf.expand_dims(gt,3)
       gt = tf.cast(gt, tf.int32)
       gt = _slice_feature(gt)
 
-      # seg_out = tf.expand_dims(tf.argmax(prediction, axis=3),axis=3)
-      # tf.summary.image(name+'/lab_gt', tf.concat(axis=2,
-      #     values=[ tf.cast(gt, tf.uint8)*(255//4), tf.cast(seg_out, tf.uint8)*(255//4)]
-      #     ), 1)
+      gt_reshape = tf.reshape(
+                gt,
+                shape=[feature_size[0],
+                       feature_size[1], 
+                       feature_size[2]])
+      gt_reshape = tf.one_hot(gt_reshape, depth=4)
+      class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0]])
+      weights_loss = tf.reduce_sum(tf.multiply(gt_reshape, class_weights), 3)
 
-      # prediction_reshape = tf.reshape(
-      #           prediction,
-      #           shape=[feature_size[0],
-      #                  feature_size[1] * feature_size[2],
-      #                  feature_size[3]])
-      # import pdb; pdb.set_trace()
-      # gt_reshape = tf.reshape(
-      #           gt,
-      #           shape=[feature_size[0],
-      #                  feature_size[1], 
-      #                  feature_size[2]])
-      # gt_reshape = tf.one_hot(gt_reshape, depth=4)
-      # class_weights = tf.constant([[0.4, 1.0, 1.0, 1.0]])
-      # weights_loss = tf.reduce_sum(tf.multiply(gt_reshape, class_weights), 3)
-      # raw_loss = tf.losses.softmax_cross_entropy(onehot_labels=gt_reshape,
-                                                 # logits=prediction_reshape,
-                                                 # weights=weights_loss)
       gt = tf.reshape(gt, [-1])
-      # prediction = tf.reshape(prediction, [-1, 4])
-      # raw_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction, labels=gt)
-      # raw_loss = tf.reshape(raw_loss,feature_size[0:3])
-      # raw_loss = tf.multiply(raw_loss,weights_loss)
+      prediction = tf.reshape(prediction, [-1, 4])
+      raw_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction, labels=gt)
+      raw_loss = tf.reshape(raw_loss,feature_size[0:3])
+      raw_loss = tf.multiply(raw_loss,weights_loss)
+      aux_loss_type=1
       if aux_loss_type==1:
+        kernel = tf.get_variable('kernel', [9, 9, 1, 1], initializer=tf.constant_initializer(1.0 / 81),
+                                     trainable=False)
         region_size=10
         half_region_size = region_size//2
         #images = [tf.image.resize_nearest_neighbor(tf.expand_dims(x,0), size) for x in images]
@@ -369,13 +359,16 @@ def _hard_attention_map(prediction, images, gt, name):
           gray_img_y = tf.expand_dims(gray_img[:, y, :], 1)
           gray_img_y = tf.tile(gray_img_y, [1,max_y-min_y,1])
           grey_diff = gray_img_y - gray_img[:, min_y:max_y,:] + 0.001
-          loss_weight_mat = tf.add(tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff)))),tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff))))
-          loss_weight = tf.reduce_sum(loss_weight_mat) + 0.001
+          loss_weight_mat =tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff))))#+tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))
+          loss_weight = tf.reduce_mean(loss_weight_mat) + 0.001
           loss_weight_mat /= loss_weight
-          loss_add_value = tf.reduce_sum(raw_loss[:,min_y:max_y,:]*loss_weight_mat)
+          # loss_add_value = tf.reduce_sum(raw_loss[:,min_y:max_y,:]*loss_weight_mat,axis=1)
+          loss_add_value = tf.reduce_sum(loss_weight_mat,axis=1)
           loss_add.append(loss_add_value)
-
+        HSP_map_y = tf.stack(loss_add, axis=1)
+        # tf.summary.image(name+'/HSP_y', tf.cast(tf.expand_dims(HSP_map_y,3), tf.uint8)*1000000, 8)
         # import pdb; pdb.set_trace()
+        loss_add[:]=[]
         for x in range(feature_size[2]):
           min_x = x-half_region_size if x>half_region_size else 0
           max_x = x+half_region_size if x+half_region_size<feature_size[2] else feature_size[2]
@@ -387,20 +380,27 @@ def _hard_attention_map(prediction, images, gt, name):
           gray_img_x = tf.expand_dims(gray_img[:, :, x], 2)
           gray_img_x = tf.tile(gray_img_x, [1,1,max_x-min_x])
           grey_diff = gray_img_x - gray_img[:, :, min_x:max_x] + 0.001
-          loss_weight_mat = tf.add(tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff)))),tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff))))
-          loss_weight = tf.reduce_sum(loss_weight_mat) + 0.001
+          loss_weight_mat = tf.multiply(lab_indices,tf.exp(-1.0/(tf.abs(grey_diff))))#+tf.multiply((1-lab_indices),tf.exp(-tf.abs(grey_diff)))
+          loss_weight = tf.reduce_mean(loss_weight_mat) + 0.001
           loss_weight_mat /= loss_weight
-          loss_add_value = tf.reduce_sum(raw_loss[:,:,min_x:max_x]*loss_weight_mat)
+          # loss_add_value = tf.reduce_sum(raw_loss[:,:,min_x:max_x]*loss_weight_mat, axis=2)
+          loss_add_value = tf.reduce_sum(loss_weight_mat, axis=2)
+          # import pdb; pdb.set_trace()
           loss_add.append(loss_add_value)
         # import pdb; pdb.set_trace()
-        raw_loss_hard = tf.stack(loss_add)
-        # raw_loss_hard = tf.Print(raw_loss_hard ,[raw_loss_hard.shape],message='tips:',summarize=100)
-        raw_loss_hard = tf.reduce_mean(raw_loss_hard) 
-        
-      else:
-        raw_loss_hard = 0
-      raw_loss = tf.reduce_mean(raw_loss)
-      return raw_loss + raw_loss_hard
+        HSP_map_x = tf.stack(loss_add, axis=2)
+        gt_mask = tf.cast(tf.greater(gt,0),tf.float32)
+        # import pdb; pdb.set_trace()
+        HSP_map = HSP_map_x+HSP_map_y
+        HSP_map = tf.nn.conv2d(tf.cast(tf.expand_dims(HSP_map, axis=3), tf.float32),
+                                           kernel, [1, 1, 1, 1], 'SAME')
+        HSP_map = tf.squeeze(HSP_map)*gt_mask
+        tf.summary.image(name+'/HSP_map', tf.cast(tf.expand_dims(HSP_map,3), tf.uint8)*20, 8)
+
+        HSP_map = tf.Print(HSP_map ,[tf.reduce_mean(HSP_map_x),tf.reduce_mean(HSP_map_y)],message='tips:',summarize=100)
+
+      raw_loss = tf.reduce_mean(raw_loss*HSP_map)
+      return raw_loss
 
 class LaneNet(cnn_basenet.CNNBaseModel):
     """
@@ -512,11 +512,15 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             # Compute the lane regression loss
             lane_dismap = inference_ret['lane_reg']
             lane_regress_loss = _regress_loss_new(lane_dismap, lane_lmap, lane_rmap, lane_binary, 'lanedet')
+
+            #attention map
+            attention_map = inference_ret['lane_HSP']
+            attention_loss = _hard_attention_map(decode_logits, attention_map, images, binary_label, 'HSP')
             # import pdb;pdb.set_trace()
         # Compute the overall loss
 
         # total_loss = binary_segmentation_loss + 0.1*existence_loss + 0.5*hard_line_loss
-        total_loss = lane_segmentation_loss + 10*lane_regress_loss + binary_segmentation_loss
+        total_loss = lane_segmentation_loss + 10*lane_regress_loss + binary_segmentation_loss+0.1*attention_loss
         # total_loss = 100*lane_regress_loss 
         ret = {
             'total_loss': total_loss,
