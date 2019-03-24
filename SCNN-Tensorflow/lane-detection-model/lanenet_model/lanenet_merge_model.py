@@ -395,7 +395,11 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             existence_loss = 1
 
             # # Compute the segmentation loss
-
+            if 1:
+                # import pdb;pdb.set_trace()
+                mask = tf.cast(tf.greater(lane_lmap,0),tf.float32)
+                lane_binary = mask *tf.cast(lane_binary,tf.float32)
+                binary_label = tf.cast(binary_label,tf.float32)*mask
             decode_logits = inference_ret['prob_output']
 
             binary_segmentation_loss = _seg_loss_hard_lane(decode_logits, images, binary_label, 'lane', aux_loss_type=0)
@@ -411,10 +415,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
 
             # Compute the lane segmentation loss
             lane_logits = inference_ret['lane_seg']
-            if 1:
-                # import pdb;pdb.set_trace()
-                mask = tf.cast(tf.greater(lane_lmap,0),tf.float32)
-                lane_binary = mask *tf.cast(lane_binary,tf.float32)
+            
             lane_segmentation_loss = _seg_loss_gauss(lane_logits, lane_binary, 'lanedet')
 
             # Compute the lane regression loss

@@ -1235,7 +1235,7 @@ class LaneNetCluster(object):
             cluster_index = np.unique(instance_seg_ret)
             cluster_index = [tmp for tmp in cluster_index if tmp != 0]
             for index, i in enumerate(cluster_index):
-                
+                mask_tmp = np.zeros(shape=[binary_seg_ret.shape[0], binary_seg_ret.shape[1]], dtype=np.uint8)
                 idx = np.where(instance_seg_ret == i)
                 coord = idx
                 if idx[0][-1]-idx[0][0]<20:
@@ -1244,11 +1244,25 @@ class LaneNetCluster(object):
                 # coord = self._thresh_coord(coord)
                 # label_x.append(np.mean(coord[1]))
                 label_ind.append(tram[int(i)-1])
-                mask_mp[coord] = tram[int(i)-1]
+                mask_tmp[coord] = tram[int(i)-1]
+                _, contours, hierarchy = cv2.findContours(mask_tmp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                areas = [cv2.contourArea(contours[i]) for i in range(len(contours))]
+                # for i in range(len(contours)):
+                #     cnt = contours[i]
+                #     area = cv2.contourArea(cnt)
+                if len(cluster_index)<2 and max(areas)<2000:
+                    continue
+                if max(areas)<1000:
+                    # import pdb;pdb.set_trace()
+                    continue
                 color = (int(self._color_map[(index+2)%6][0]),
                          int(self._color_map[(index+2)%6][1]),
                          int(self._color_map[(index+2)%6][2]))
-                mask_image[coord]=color
+                cv2.drawContours(mask_image,contours,areas.index(max(areas)),color,-1)
+                cv2.drawContours(mask_mp,contours,areas.index(max(areas)),tram[int(i)-1],-1)
+                # cv2.imwrite('png/4.png',mask_tmp*55)
+                # cv2.imwrite('png/3.jpg',mask_image)
+                # import pdb;pdb.set_trace()
 
         # cv2.imwrite('png/3.jpg',mask_image)
         # cv2.imwrite('png/4.png',mask_mp*55)
