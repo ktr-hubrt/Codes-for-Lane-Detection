@@ -1227,7 +1227,7 @@ class LaneNetCluster(object):
                 mask_image[coord]=color
         else:
             binary_seg_ret = binary_seg_ret>0.8
-            instance_seg_ret = binary_seg_ret*instance_seg_ret
+            # instance_seg_ret = binary_seg_ret*instance_seg_ret
             num_cluster = np.max(instance_seg_ret)
 
             assert num_cluster<=3

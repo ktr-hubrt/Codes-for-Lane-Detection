@@ -12,6 +12,7 @@ import tensorflow as tf
 
 from encoder_decoder_model import vgg_encoder
 from encoder_decoder_model import cnn_basenet
+from lanenet_model import lanenet_discriminative_loss
 # from lanenet_model import LaneDetPredictor
 from config import global_config
 
@@ -310,6 +311,37 @@ def _seg_loss_hard_lane(prediction, images, gt, name, aux_loss_type=1):
       raw_loss = tf.reduce_mean(raw_loss)
       return raw_loss + raw_loss_hard
 
+def _discriminative_loss(prediction, images, gt, name, aux_loss_type=1):
+    with tf.variable_scope(name + '/discriminative_loss'):
+      pix_embedding = tf.nn.relu(prediction)
+      
+      feature_size = prediction.get_shape().as_list()
+      gt = tf.expand_dims(gt,3)
+      gt = tf.cast(gt, tf.int32)
+      gt = _slice_feature(gt)
+      instance_label = gt
+
+      seg_out = tf.expand_dims(tf.argmax(prediction, axis=3),axis=3)
+      tf.summary.image(name+'/lab_gt', tf.concat(axis=2,
+          values=[ tf.cast(gt, tf.uint8)*(255//4), tf.cast(seg_out, tf.uint8)*(255//4)]
+          ), 8)
+
+      image_shape = (pix_embedding.get_shape().as_list()[1], pix_embedding.get_shape().as_list()[2])
+      out_loss_op, l_var, l_dist, l_reg = lanenet_discriminative_loss.discriminative_loss(
+              pix_embedding, instance_label, pix_embedding.get_shape().as_list()[3], image_shape, 0.5, 1.5, 1.0, 1.0, 0.001)
+      # import pdb;pdb.set_trace()
+      gt = tf.reshape(gt,[feature_size[0],-1])
+      sum_gt = tf.reduce_sum(gt,axis=1)
+      # flag = tf.cast(tf.greater(sum_gt,0),tf.float32)
+      out_loss_op = tf.clip_by_value(out_loss_op,1e-8,1e8)
+      flag = tf.cast(tf.less(out_loss_op,1e3), tf.float32)
+      out_loss_op = out_loss_op*flag
+      
+      disc_loss = tf.reduce_sum(out_loss_op)/(tf.reduce_sum(flag)+0.01)
+      disc_loss = tf.Print(disc_loss,[sum_gt,out_loss_op],message='tips:',summarize=100)
+      return disc_loss
+
+
 class LaneNet(cnn_basenet.CNNBaseModel):
     """
     Lane detection model
@@ -402,21 +434,16 @@ class LaneNet(cnn_basenet.CNNBaseModel):
                 binary_label = tf.cast(binary_label,tf.float32)*mask
             decode_logits = inference_ret['prob_output']
 
-            binary_segmentation_loss = _seg_loss_hard_lane(decode_logits, images, binary_label, 'lane', aux_loss_type=0)
+            # raw_loss = _seg_loss_hard_lane(decode_logits, images, binary_label, 'lane', aux_loss_type=0)
+            disc_loss = _discriminative_loss(decode_logits, images, binary_label, 'lane', aux_loss_type=0)
 
-            # # Compute the HSP loss of line
-            # hard_line_loss = _seg_loss_hard(decode_logits, images, binary_label, 'hard_line')
-
-            # # Compute the sigmoid loss
-
-            # existence_logits = inference_ret['existence_output']
-            # existence_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=existence_label, logits=existence_logits)
-            # existence_loss = tf.reduce_mean(existence_loss)
-
+            binary_segmentation_loss = 0.5 * disc_loss
+            # binary_segmentation_loss = raw_loss
             # Compute the lane segmentation loss
             lane_logits = inference_ret['lane_seg']
             
             lane_segmentation_loss = _seg_loss_gauss(lane_logits, lane_binary, 'lanedet')
+            # lane_segmentation_loss = disc_loss
 
             # Compute the lane regression loss
             lane_dismap = inference_ret['lane_reg']

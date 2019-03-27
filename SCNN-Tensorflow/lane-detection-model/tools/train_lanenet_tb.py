@@ -23,6 +23,8 @@ from config import global_config
 from lanenet_model import lanenet_merge_model
 from data_provider import lanenet_data_processor
 from tensorflow.python import pywrap_tensorflow
+import math
+import cv2
 
 CFG = global_config.cfg
 
@@ -178,7 +180,7 @@ def forward(batch_queue, net, phase, scope, optimizer=None):
         grads = optimizer.compute_gradients(total_loss)
     else:
         grads = None
-    return total_loss, instance_loss, gaush_loss, regress_loss, line_hard_loss, accuracy, accuracy_back, IoU, out_logits_out, grads
+    return total_loss, instance_loss, gaush_loss, regress_loss, line_hard_loss, accuracy, accuracy_back, IoU, out_logits_out, grads, img_batch, label_instance_batch
 
 def get_variables_in_checkpoint_file(file_name):
     try:
@@ -290,7 +292,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
             with tf.device('/gpu:%d' % i):
                 with tf.name_scope('tower_%d' % i) as scope:
                     total_loss, instance_loss, gaush_loss, regress_loss, line_hard_loss, accuracy, accuracy_back, _, out_logits_out, \
-                        grad = forward(batch_queue, net, phase, scope, optimizer)
+                        grad, imgs, labels = forward(batch_queue, net, phase, scope, optimizer)
                     tower_grads.append(grad)
                     summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
                     global_summaries += summaries
@@ -368,8 +370,8 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
         tf.train.start_queue_runners(sess=sess)
         for epoch in range(CFG.TRAIN.EPOCHS):
             t_start = time.time()
-            _, c, train_accuracy, train_accuracy_back, train_instance_loss, train_existence_loss, train_summary, _ = \
-                sess.run([train_op, total_loss, accuracy, accuracy_back, instance_loss, gaush_loss, summary_op, out_logits_out],
+            _, c, train_accuracy, train_accuracy_back, train_instance_loss, train_existence_loss, train_summary, _, images, instance_labels = \
+                sess.run([train_op, total_loss, accuracy, accuracy_back, instance_loss, gaush_loss, summary_op, out_logits_out, imgs, labels],
                          feed_dict={phase: 'train'})
 
             cost_time = time.time() - t_start
@@ -391,6 +393,15 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
                                                                              train_accuracy_back,
                                                                              np.mean(train_accuracy_back_mean),
                                                                              np.mean(train_cost_time_mean)))
+
+            
+            if math.isnan(c) or math.isnan(train_instance_loss):
+                summary_writer.add_summary(summary=train_summary, global_step=epoch)
+                for i in range(images.shape[0]):
+                    cv2.imwrite('png/nan_image_'+str(i)+'.png', images[i] + lanenet_data_processor.VGG_MEAN)
+                    cv2.imwrite('png/nan_instance_label_'+str(i)+'.png', instance_labels[i]*50)
+                import pdb;pdb.set_trace()
+
             if epoch % 100 == 0:
                 summary_writer.add_summary(summary=train_summary, global_step=epoch)
 
@@ -401,7 +412,7 @@ def train_net(dataset_dir, version, weights_path=None, net_flag='vgg'):
                 train_accuracy_mean.clear()
                 train_accuracy_back_mean.clear()
 
-            if epoch % 10000 == 0:
+            if epoch % 1000 == 0:
                 saver.save(sess=sess, save_path=model_save_path, global_step=epoch)
 
             if epoch >= 0:
